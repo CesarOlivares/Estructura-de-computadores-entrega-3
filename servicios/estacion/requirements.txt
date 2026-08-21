@@ -1,0 +1,2 @@
+# Dependencias del worker de estación (versiones fijadas = build reproducible)
+redis==8.1.0

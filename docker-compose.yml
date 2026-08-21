@@ -23,3 +23,15 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  fileteado:
+    build: ./servicios/estacion
+    environment:
+      NOMBRE_ETAPA: fileteado
+      COLA_ENTRADA: cola:fileteado
+      COLA_SALIDA: cola:envasado
+      TIEMPO_CICLO: ${CICLO_FILETEADO:-4}
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
