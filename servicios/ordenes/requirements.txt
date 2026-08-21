@@ -1,0 +1,6 @@
+# Dependencias del orders-api (Fase 3).
+# Versiones fijadas a las probadas: así el build del profesor instala
+# exactamente lo mismo que se verificó, hoy y en un mes.
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.4

@@ -849,7 +849,13 @@ arreglarla.**
 
 ## 10. Estado actual
 
-**Fases 0 y 1 completas y verificadas. La siguiente es la Fase 2.**
+**Actualizado 21/08/2026.** Fases 0 y 1 completas y verificadas — la Fase 0
+además rehecha y verificada en la **máquina 2** (ver `docs/fases/fase-0-entorno.md`;
+Ubuntu y datos de Docker viven en D: por falta de espacio en C:). **Fase 2:**
+diseño escrito y commiteado en `docs/diseno.md`; su prueba oficial (cuestionario
+§6 respondido por ambos sin mirar) **sigue pendiente y es bloqueante antes de
+repartir las fases 8–11**. **Fase 3 completa y verificada** (batería de 8 casos
+contra el contrato, todos pasando). **La siguiente es la Fase 4.**
 
 ### Lo que ya está hecho
 
@@ -870,9 +876,9 @@ arreglarla.**
 
 ### Lo que falta
 
-Las fases 2 a 15. La 2 es diseño en papel y **hay que hacerla antes de escribir
-cualquier código de los servicios**, porque define los contratos contra los que
-programan los dos integrantes.
+Las fases 4 a 15, más la **prueba de equipo de la Fase 2** (cuestionario de
+`docs/diseno.md` §6, ambos integrantes sin mirar el documento). El detalle del
+avance por fase vive en las bitácoras de `docs/fases/`.
 
 ### Reparto sugerido entre los dos
 
@@ -913,10 +919,10 @@ de rúbrica):
 
 ### Siguiente acción concreta
 
-Fase 2: escribir `docs/diseno.md` con los contratos de las tres APIs, el esquema de
-las tablas `ordenes` y `eventos`, y el criterio de cuello de botella. No se escribe
-código de servicios hasta que ese documento esté cerrado y los dos integrantes lo
-puedan explicar sin leerlo.
+Fase 4: agregar el servicio `redis` al `docker-compose.yml` y hacer que
+`orders-api` encole el id de cada orden nueva en `cola:fileteado`, con el host
+de Redis por variable de entorno. Además, en cuanto estén juntos: pasar la
+prueba de equipo de la Fase 2 (es requisito antes de repartir las fases 8–11).
 
 ---
 

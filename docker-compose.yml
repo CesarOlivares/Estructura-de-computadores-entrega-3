@@ -1,0 +1,8 @@
+# Orquestación del sistema. Fase 3: solo el orders-api; los demás servicios
+# (redis, estaciones, métricas, UI) se agregan en las fases siguientes.
+services:
+  ordenes:
+    build: ./servicios/ordenes
+    container_name: ordenes
+    ports:
+      - "8000:8000"
