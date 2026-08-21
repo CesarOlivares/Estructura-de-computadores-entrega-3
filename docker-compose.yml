@@ -31,6 +31,22 @@ services:
       COLA_ENTRADA: cola:fileteado
       COLA_SALIDA: cola:envasado
       TIEMPO_CICLO: ${CICLO_FILETEADO:-4}
+      MODO_RECLAMO: ${MODO_RECLAMO:-ingenuo}
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # La etapa replicada: sin container_name para poder escalarla con
+  # `docker compose up --scale envasado=3`.
+  envasado:
+    build: ./servicios/estacion
+    environment:
+      NOMBRE_ETAPA: envasado
+      COLA_ENTRADA: cola:envasado
+      COLA_SALIDA: cola:sellado
+      TIEMPO_CICLO: ${CICLO_ENVASADO:-12}
+      MODO_RECLAMO: ${MODO_RECLAMO:-ingenuo}
       REDIS_HOST: redis
     depends_on:
       redis:

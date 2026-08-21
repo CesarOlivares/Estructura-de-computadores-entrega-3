@@ -24,6 +24,13 @@ COLA_ENTRADA = os.environ["COLA_ENTRADA"]
 COLA_SALIDA = os.environ["COLA_SALIDA"]
 TIEMPO_CICLO = float(os.environ["TIEMPO_CICLO"])
 
+# Cómo reclama trabajo la réplica: "ingenuo" (mirar y después sacar, DOS
+# operaciones con una ventana entre medio) o "atomico" (BRPOP, UNA operación).
+MODO_RECLAMO = os.environ.get("MODO_RECLAMO", "ingenuo")
+# Pausa artificial dentro de la ventana del modo ingenuo, para hacer visible
+# en segundos un problema que en la realidad ocurre en microsegundos.
+DEMORA_INGENUA = float(os.environ.get("DEMORA_INGENUA", "0.1"))
+
 # Identidad de la réplica: etapa + hostname del contenedor (único por réplica).
 # PREFIJO_REPLICA permite distinguir variantes (p. ej. una réplica lenta).
 REPLICA_ID = f"{os.environ.get('PREFIJO_REPLICA', NOMBRE_ETAPA)}-{socket.gethostname()}"
@@ -40,20 +47,52 @@ def log(mensaje: str) -> None:
     print(f"[{REPLICA_ID}] {mensaje}", flush=True)
 
 
+def reclamar_atomico():
+    """Reclamo correcto: BRPOP saca el elemento en UNA operación indivisible.
+
+    Redis garantiza que cada elemento se entrega a exactamente una réplica,
+    aunque haya varias esperando sobre la misma cola.
+    """
+    resultado = r.brpop(COLA_ENTRADA, timeout=2)
+    return None if resultado is None else resultado[1]
+
+
+def reclamar_ingenuo():
+    """Reclamo INTENCIONALMENTE ROTO, para demostrar la condición de carrera.
+
+    Separa el reclamo en dos operaciones: (1) mirar el último elemento con
+    LRANGE, (2) sacarlo con LREM. Entre ambas hay una ventana en la que otra
+    réplica puede mirar la cola y ver LA MISMA orden. Las dos la "reclaman",
+    las dos la procesan: orden duplicada. Ignorar el resultado de LREM (que
+    avisaría que otro la sacó primero) es exactamente el error que se comete
+    al programar esto sin pensar en concurrencia.
+    """
+    vistos = r.lrange(COLA_ENTRADA, -1, -1)  # 1) mirar sin sacar
+    if not vistos:
+        time.sleep(0.2)  # cola vacía: pequeña pausa para no martillar Redis
+        return None
+    orden_id = vistos[0]
+    time.sleep(DEMORA_INGENUA)  # <- la ventana fatal, ensanchada para la demo
+    r.lrem(COLA_ENTRADA, 1, orden_id)  # 2) sacar por valor, ignorando si ya no estaba
+    return orden_id
+
+
 def main() -> None:
-    log(f"lista: {COLA_ENTRADA} -> {COLA_SALIDA}, ciclo {TIEMPO_CICLO}s")
+    log(f"lista: {COLA_ENTRADA} -> {COLA_SALIDA}, ciclo {TIEMPO_CICLO}s, reclamo {MODO_RECLAMO}")
+    reclamar = reclamar_ingenuo if MODO_RECLAMO == "ingenuo" else reclamar_atomico
     procesadas = 0
     while True:
-        # timeout=2: si no llega nada volvemos al loop (permite refrescar
-        # estado más adelante); seguimos bloqueados sin gastar CPU.
-        resultado = r.brpop(COLA_ENTRADA, timeout=2)
-        if resultado is None:
+        orden_id = reclamar()
+        if orden_id is None:
             continue
-        _, orden_id = resultado
         log(f"procesando orden {orden_id}")
         time.sleep(TIEMPO_CICLO)  # simula el ciclo de la máquina
         r.lpush(COLA_SALIDA, orden_id)
         procesadas += 1
+        # Conteos en Redis para los experimentos: cuántas veces se procesó
+        # cada orden (detector de duplicados) y cuánto procesó cada réplica.
+        r.hincrby("conteo:procesadas", orden_id, 1)
+        r.hincrby("conteo:replica", REPLICA_ID, 1)
         log(f"orden {orden_id} terminada ({procesadas} en total)")
 
 
