@@ -1,8 +1,25 @@
-# Orquestación del sistema. Fase 3: solo el orders-api; los demás servicios
-# (redis, estaciones, métricas, UI) se agregan en las fases siguientes.
+# Orquestación del sistema. Fase 4: orders-api + Redis con healthcheck.
+# Los tiempos de ciclo se pueden ajustar por variables de entorno al levantar
+# (p. ej. para experimentos); los valores por defecto son los del diseño.
 services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   ordenes:
     build: ./servicios/ordenes
     container_name: ordenes
     ports:
       - "8000:8000"
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
