@@ -9,7 +9,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py .
+COPY app.py bd.py ./
 
 # 0.0.0.0 y no 127.0.0.1: dentro del contenedor, 127.0.0.1 solo se vería a sí
 # mismo y el puerto publicado no recibiría nada.

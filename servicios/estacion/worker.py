@@ -26,11 +26,18 @@ import redis
 import uvicorn
 from fastapi import FastAPI
 
+import bd
+
 NOMBRE_ETAPA = os.environ["NOMBRE_ETAPA"]
 COLA_ENTRADA = os.environ["COLA_ENTRADA"]
 COLA_SALIDA = os.environ["COLA_SALIDA"]
 TIEMPO_CICLO = float(os.environ["TIEMPO_CICLO"])
 PUERTO = int(os.environ.get("PUERTO", "8080"))
+
+# La última etapa es la que desemboca en cola:listos: además de empujar la
+# orden, la marca como terminada en la base.
+ES_ULTIMA_ETAPA = COLA_SALIDA == "cola:listos"
+ETAPA_SIGUIENTE = COLA_SALIDA.split(":", 1)[1]  # "cola:sellado" -> "sellado"
 
 # Cómo reclama trabajo la réplica: "atomico" (BRPOP, UNA operación — el modo
 # correcto y el default) o "ingenuo" (mirar y después sacar, DOS operaciones
@@ -115,6 +122,44 @@ def reclamar_ingenuo():
 # --- Ciclo del worker -------------------------------------------------------
 
 
+def ahora_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def registrar_inicio(orden_id: str) -> None:
+    """Evento `inicia`: esta réplica tomó la orden de su cola."""
+    with bd.transaccion() as con:
+        con.execute(
+            "INSERT INTO eventos (orden_id, etapa, replica_id, tipo, timestamp)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (orden_id, NOMBRE_ETAPA, REPLICA_ID, "inicia", ahora_iso()),
+        )
+
+
+def registrar_termino(orden_id: str) -> None:
+    """Evento `termina`; si esta es la última etapa, además cierra la orden;
+    si no, registra el `entra_cola` de la etapa siguiente (lo escribe quien
+    encola, según docs/diseno.md §2)."""
+    ahora = ahora_iso()
+    with bd.transaccion() as con:
+        con.execute(
+            "INSERT INTO eventos (orden_id, etapa, replica_id, tipo, timestamp)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (orden_id, NOMBRE_ETAPA, REPLICA_ID, "termina", ahora),
+        )
+        if ES_ULTIMA_ETAPA:
+            con.execute(
+                "UPDATE ordenes SET estado = 'terminada', terminada_en = ? WHERE id = ?",
+                (ahora, orden_id),
+            )
+        else:
+            con.execute(
+                "INSERT INTO eventos (orden_id, etapa, replica_id, tipo, timestamp)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (orden_id, ETAPA_SIGUIENTE, REPLICA_ID, "entra_cola", ahora),
+            )
+
+
 def bucle_worker() -> None:
     log(f"lista: {COLA_ENTRADA} -> {COLA_SALIDA}, ciclo {TIEMPO_CICLO}s, reclamo {MODO_RECLAMO}")
     reclamar = reclamar_ingenuo if MODO_RECLAMO == "ingenuo" else reclamar_atomico
@@ -127,7 +172,9 @@ def bucle_worker() -> None:
             estado_local["ocupada"] = True
             publicar_estado()
             log(f"procesando orden {orden_id}")
+            registrar_inicio(orden_id)
             time.sleep(TIEMPO_CICLO)  # simula el ciclo de la máquina
+            registrar_termino(orden_id)
             r.lpush(COLA_SALIDA, orden_id)
             estado_local["procesadas"] += 1
             estado_local["ocupada"] = False
@@ -165,5 +212,6 @@ def salud() -> dict:
 
 
 if __name__ == "__main__":
+    bd.inicializar()  # el primer servicio en llegar crea las tablas
     threading.Thread(target=bucle_worker, daemon=True).start()
     uvicorn.run(app, host="0.0.0.0", port=PUERTO, log_level="warning")

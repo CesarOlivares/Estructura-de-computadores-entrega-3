@@ -1,8 +1,9 @@
 """Servicio de Órdenes (orders-api).
 
-Contrato en docs/diseno.md §1.1. Al crear una orden, su id se encola en
-cola:fileteado (Redis) para que la línea la procese. Las órdenes se guardan
-EN MEMORIA todavía: la persistencia en SQLite llega en la Fase 8.
+Contrato en docs/diseno.md §1.1. Al crear una orden: se guarda en SQLite,
+se registra su evento `entra_cola` de la primera etapa, y su id se encola en
+cola:fileteado (Redis) — todo dentro de una transacción, para que una falla
+de Redis no deje órdenes fantasma en la base.
 """
 
 import os
@@ -13,6 +14,8 @@ import redis
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
+import bd
+
 # Conexión a Redis: host y puerto SIEMPRE por variables de entorno, nunca
 # escritos a mano — en Docker el host es el nombre del servicio ("redis").
 r = redis.Redis(
@@ -21,11 +24,15 @@ r = redis.Redis(
     decode_responses=True,
 )
 COLA_PRIMERA_ETAPA = os.environ.get("COLA_PRIMERA_ETAPA", "cola:fileteado")
+PRIMERA_ETAPA = COLA_PRIMERA_ETAPA.split(":", 1)[1]  # "cola:fileteado" -> "fileteado"
 
 app = FastAPI(
     title="orders-api",
     description="Crea y consulta órdenes de producción de la línea conservera",
 )
+
+bd.inicializar()
+
 
 # --- Modelos (el contrato de entrada/salida) -------------------------------
 
@@ -45,53 +52,54 @@ class OrdenEntrada(BaseModel):
         return valor.strip()
 
 
-# --- Almacenamiento en memoria (temporal, ver docstring del módulo) --------
-
-ordenes: dict[int, dict] = {}
-siguiente_id = 1
-
-# Catálogo de estados válidos (docs/diseno.md §2): la etapa actual no es un
-# estado guardado, se deriva de los eventos (desde la Fase 8).
-ESTADOS = ("en_proceso", "terminada")
-
-
 # --- Endpoints -------------------------------------------------------------
 
 
 @app.post("/ordenes", status_code=201)
 def crear_orden(entrada: OrdenEntrada) -> dict:
-    """Crea una orden y encola su id en la primera etapa de la línea.
+    """Crea una orden, registra su entrada a la cola y la encola en Redis.
 
-    Si Redis no responde, la orden NO se crea y se responde 503: una orden
-    guardada pero nunca encolada quedaría en_proceso para siempre.
+    El LPUSH va DENTRO de la transacción de SQLite: si Redis no responde, el
+    INSERT se deshace, no se crea nada y se responde 503 — una orden guardada
+    pero nunca encolada quedaría en_proceso para siempre.
     """
-    global siguiente_id
-    orden = {
-        "id": siguiente_id,
-        "producto": entrada.producto,
-        "cantidad": entrada.cantidad,
-        "estado": "en_proceso",
-        "creada_en": datetime.now(timezone.utc).isoformat(),
-        "terminada_en": None,
-    }
+    ahora = datetime.now(timezone.utc).isoformat()
     try:
-        r.lpush(COLA_PRIMERA_ETAPA, str(orden["id"]))
+        with bd.transaccion() as con:
+            cursor = con.execute(
+                "INSERT INTO ordenes (producto, cantidad, estado, creada_en) VALUES (?, ?, ?, ?)",
+                (entrada.producto, entrada.cantidad, "en_proceso", ahora),
+            )
+            orden_id = cursor.lastrowid
+            con.execute(
+                "INSERT INTO eventos (orden_id, etapa, replica_id, tipo, timestamp)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (orden_id, PRIMERA_ETAPA, "orders-api", "entra_cola", ahora),
+            )
+            r.lpush(COLA_PRIMERA_ETAPA, str(orden_id))
     except redis.exceptions.RedisError:
         raise HTTPException(
             status_code=503,
             detail="sin conexión con el servicio de coordinación (Redis); intente de nuevo",
         )
-    ordenes[siguiente_id] = orden
-    siguiente_id += 1
-    return orden
+    return {
+        "id": orden_id,
+        "producto": entrada.producto,
+        "cantidad": entrada.cantidad,
+        "estado": "en_proceso",
+        "creada_en": ahora,
+        "terminada_en": None,
+    }
 
 
 @app.get("/ordenes/{orden_id}")
 def obtener_orden(orden_id: int) -> dict:
     """Devuelve una orden por id, o 404 si no existe."""
-    if orden_id not in ordenes:
+    with bd.transaccion() as con:
+        fila = con.execute("SELECT * FROM ordenes WHERE id = ?", (orden_id,)).fetchone()
+    if fila is None:
         raise HTTPException(status_code=404, detail=f"la orden {orden_id} no existe")
-    return ordenes[orden_id]
+    return dict(fila)
 
 
 @app.get("/ordenes")
@@ -99,10 +107,14 @@ def listar_ordenes(
     estado: Optional[str] = Query(default=None, pattern="^(en_proceso|terminada)$"),
 ) -> list[dict]:
     """Lista las órdenes; con ?estado= filtra por estado (422 si el valor no existe)."""
-    todas = list(ordenes.values())
-    if estado is None:
-        return todas
-    return [o for o in todas if o["estado"] == estado]
+    with bd.transaccion() as con:
+        if estado is None:
+            filas = con.execute("SELECT * FROM ordenes ORDER BY id").fetchall()
+        else:
+            filas = con.execute(
+                "SELECT * FROM ordenes WHERE estado = ? ORDER BY id", (estado,)
+            ).fetchall()
+    return [dict(fila) for fila in filas]
 
 
 @app.get("/salud")

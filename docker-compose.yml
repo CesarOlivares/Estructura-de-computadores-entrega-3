@@ -1,6 +1,20 @@
-# Orquestación del sistema. Fase 4: orders-api + Redis con healthcheck.
+# Orquestación del sistema — línea completa:
+#   redis (colas + estado) · ordenes (API) · 4 estaciones · volumen de datos
+#
 # Los tiempos de ciclo se pueden ajustar por variables de entorno al levantar
 # (p. ej. para experimentos); los valores por defecto son los del diseño.
+# La base SQLite vive en el volumen `datos`: sobrevive a `docker compose down`.
+
+# Configuración común de toda estación: misma imagen, mismo volumen; cada
+# etapa solo cambia sus variables de entorno.
+x-estacion: &estacion
+  build: ./servicios/estacion
+  volumes:
+    - datos:/datos
+  depends_on:
+    redis:
+      condition: service_healthy
+
 services:
   redis:
     image: redis:7
@@ -20,12 +34,15 @@ services:
       - "8000:8000"
     environment:
       REDIS_HOST: redis
+      DB_RUTA: /datos/planta.db
+    volumes:
+      - datos:/datos
     depends_on:
       redis:
         condition: service_healthy
 
   fileteado:
-    build: ./servicios/estacion
+    <<: *estacion
     environment:
       NOMBRE_ETAPA: fileteado
       COLA_ENTRADA: cola:fileteado
@@ -33,14 +50,12 @@ services:
       TIEMPO_CICLO: ${CICLO_FILETEADO:-4}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
       REDIS_HOST: redis
-    depends_on:
-      redis:
-        condition: service_healthy
+      DB_RUTA: /datos/planta.db
 
   # La etapa replicada: sin container_name para poder escalarla con
   # `docker compose up --scale envasado=3`.
   envasado:
-    build: ./servicios/estacion
+    <<: *estacion
     environment:
       NOMBRE_ETAPA: envasado
       COLA_ENTRADA: cola:envasado
@@ -48,15 +63,13 @@ services:
       TIEMPO_CICLO: ${CICLO_ENVASADO:-12}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
       REDIS_HOST: redis
-    depends_on:
-      redis:
-        condition: service_healthy
+      DB_RUTA: /datos/planta.db
 
   # Réplica LENTA de envasado para el experimento de balanceo (Fase 7):
   # misma imagen y misma cola, el doble de tiempo de ciclo. Solo se levanta
   # a pedido con `docker compose --profile experimento up`.
   envasado-lento:
-    build: ./servicios/estacion
+    <<: *estacion
     profiles: ["experimento"]
     environment:
       NOMBRE_ETAPA: envasado
@@ -66,6 +79,29 @@ services:
       TIEMPO_CICLO: ${CICLO_ENVASADO_LENTO:-24}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
       REDIS_HOST: redis
-    depends_on:
-      redis:
-        condition: service_healthy
+      DB_RUTA: /datos/planta.db
+
+  sellado:
+    <<: *estacion
+    environment:
+      NOMBRE_ETAPA: sellado
+      COLA_ENTRADA: cola:sellado
+      COLA_SALIDA: cola:esterilizacion
+      TIEMPO_CICLO: ${CICLO_SELLADO:-3}
+      MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      REDIS_HOST: redis
+      DB_RUTA: /datos/planta.db
+
+  esterilizacion:
+    <<: *estacion
+    environment:
+      NOMBRE_ETAPA: esterilizacion
+      COLA_ENTRADA: cola:esterilizacion
+      COLA_SALIDA: cola:listos
+      TIEMPO_CICLO: ${CICLO_ESTERILIZACION:-7}
+      MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      REDIS_HOST: redis
+      DB_RUTA: /datos/planta.db
+
+volumes:
+  datos:
