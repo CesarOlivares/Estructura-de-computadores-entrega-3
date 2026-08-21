@@ -1,2 +1,5 @@
 # Dependencias del worker de estación (versiones fijadas = build reproducible)
 redis==8.1.0
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.4

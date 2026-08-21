@@ -8,21 +8,29 @@ viene por variables de entorno (nunca escrito en el código):
     COLA_SALIDA=cola:sellado
     TIEMPO_CICLO=12
 
-Ciclo de vida: BRPOP de la cola de entrada (bloqueante: el worker ocioso NO
-consume CPU) → esperar TIEMPO_CICLO (simula el trabajo) → LPUSH a la cola de
-salida. LPUSH por la izquierda + BRPOP por la derecha = cola FIFO.
+Estructura: el ciclo de trabajo corre en un hilo (BRPOP bloqueante → esperar
+TIEMPO_CICLO → LPUSH a la salida) y el hilo principal atiende HTTP con
+GET /estado y GET /salud. Además cada réplica publica su estado en el hash
+`estado:replicas` de Redis, para que métricas y UI vean todas las réplicas
+sin tener que descubrirlas una por una.
 """
 
+import json
 import os
 import socket
+import threading
 import time
+from datetime import datetime, timezone
 
 import redis
+import uvicorn
+from fastapi import FastAPI
 
 NOMBRE_ETAPA = os.environ["NOMBRE_ETAPA"]
 COLA_ENTRADA = os.environ["COLA_ENTRADA"]
 COLA_SALIDA = os.environ["COLA_SALIDA"]
 TIEMPO_CICLO = float(os.environ["TIEMPO_CICLO"])
+PUERTO = int(os.environ.get("PUERTO", "8080"))
 
 # Cómo reclama trabajo la réplica: "atomico" (BRPOP, UNA operación — el modo
 # correcto y el default) o "ingenuo" (mirar y después sacar, DOS operaciones
@@ -43,10 +51,35 @@ r = redis.Redis(
     decode_responses=True,
 )
 
+# Estado local de la réplica (contrato de GET /estado en docs/diseno.md §1.2).
+# Lo modifica solo el hilo del worker; HTTP únicamente lo lee.
+estado_local = {
+    "etapa": NOMBRE_ETAPA,
+    "replica_id": REPLICA_ID,
+    "procesadas": 0,
+    "ocupada": False,
+}
+
 
 def log(mensaje: str) -> None:
     """Toda línea de log lleva el replica_id para poder seguir quién hizo qué."""
     print(f"[{REPLICA_ID}] {mensaje}", flush=True)
+
+
+def publicar_estado() -> None:
+    """Latido de la réplica: su estado + tiempo de ciclo, con marca de tiempo."""
+    datos = {
+        **estado_local,
+        "tiempo_ciclo": TIEMPO_CICLO,
+        "actualizado_en": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        r.hset("estado:replicas", REPLICA_ID, json.dumps(datos))
+    except redis.exceptions.RedisError:
+        pass  # sin Redis no hay dónde publicar; el ciclo del worker ya reintenta
+
+
+# --- Reclamo de órdenes -----------------------------------------------------
 
 
 def reclamar_atomico():
@@ -79,24 +112,58 @@ def reclamar_ingenuo():
     return orden_id
 
 
-def main() -> None:
+# --- Ciclo del worker -------------------------------------------------------
+
+
+def bucle_worker() -> None:
     log(f"lista: {COLA_ENTRADA} -> {COLA_SALIDA}, ciclo {TIEMPO_CICLO}s, reclamo {MODO_RECLAMO}")
     reclamar = reclamar_ingenuo if MODO_RECLAMO == "ingenuo" else reclamar_atomico
-    procesadas = 0
     while True:
-        orden_id = reclamar()
-        if orden_id is None:
-            continue
-        log(f"procesando orden {orden_id}")
-        time.sleep(TIEMPO_CICLO)  # simula el ciclo de la máquina
-        r.lpush(COLA_SALIDA, orden_id)
-        procesadas += 1
-        # Conteos en Redis para los experimentos: cuántas veces se procesó
-        # cada orden (detector de duplicados) y cuánto procesó cada réplica.
-        r.hincrby("conteo:procesadas", orden_id, 1)
-        r.hincrby("conteo:replica", REPLICA_ID, 1)
-        log(f"orden {orden_id} terminada ({procesadas} en total)")
+        try:
+            orden_id = reclamar()
+            if orden_id is None:
+                publicar_estado()  # latido periódico aunque no haya trabajo
+                continue
+            estado_local["ocupada"] = True
+            publicar_estado()
+            log(f"procesando orden {orden_id}")
+            time.sleep(TIEMPO_CICLO)  # simula el ciclo de la máquina
+            r.lpush(COLA_SALIDA, orden_id)
+            estado_local["procesadas"] += 1
+            estado_local["ocupada"] = False
+            # Conteos en Redis para los experimentos: cuántas veces se procesó
+            # cada orden (detector de duplicados) y cuánto procesó cada réplica.
+            r.hincrby("conteo:procesadas", orden_id, 1)
+            r.hincrby("conteo:replica", REPLICA_ID, 1)
+            publicar_estado()
+            log(f"orden {orden_id} terminada ({estado_local['procesadas']} en total)")
+        except redis.exceptions.RedisError as error:
+            estado_local["ocupada"] = False
+            log(f"sin conexión con Redis ({error}); reintento en 2 s")
+            time.sleep(2)
+
+
+# --- API HTTP de la réplica (docs/diseno.md §1.2) ---------------------------
+
+app = FastAPI(title=f"estacion-{NOMBRE_ETAPA}")
+
+
+@app.get("/estado")
+def get_estado() -> dict:
+    """Estado de ESTA réplica; en_cola es el largo actual de su cola de entrada."""
+    try:
+        en_cola = r.llen(COLA_ENTRADA)
+    except redis.exceptions.RedisError:
+        en_cola = None  # sin Redis no se puede saber; el resto sigue siendo válido
+    return {**estado_local, "en_cola": en_cola}
+
+
+@app.get("/salud")
+def salud() -> dict:
+    """Healthcheck: si responde, el servicio está vivo."""
+    return {"estado": "ok"}
 
 
 if __name__ == "__main__":
-    main()
+    threading.Thread(target=bucle_worker, daemon=True).start()
+    uvicorn.run(app, host="0.0.0.0", port=PUERTO, log_level="warning")
