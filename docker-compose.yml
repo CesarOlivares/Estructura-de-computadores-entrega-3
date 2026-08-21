@@ -31,7 +31,7 @@ services:
       COLA_ENTRADA: cola:fileteado
       COLA_SALIDA: cola:envasado
       TIEMPO_CICLO: ${CICLO_FILETEADO:-4}
-      MODO_RECLAMO: ${MODO_RECLAMO:-ingenuo}
+      MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
       REDIS_HOST: redis
     depends_on:
       redis:
@@ -46,7 +46,7 @@ services:
       COLA_ENTRADA: cola:envasado
       COLA_SALIDA: cola:sellado
       TIEMPO_CICLO: ${CICLO_ENVASADO:-12}
-      MODO_RECLAMO: ${MODO_RECLAMO:-ingenuo}
+      MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
       REDIS_HOST: redis
     depends_on:
       redis:

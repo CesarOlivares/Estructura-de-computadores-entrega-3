@@ -24,9 +24,11 @@ COLA_ENTRADA = os.environ["COLA_ENTRADA"]
 COLA_SALIDA = os.environ["COLA_SALIDA"]
 TIEMPO_CICLO = float(os.environ["TIEMPO_CICLO"])
 
-# Cómo reclama trabajo la réplica: "ingenuo" (mirar y después sacar, DOS
-# operaciones con una ventana entre medio) o "atomico" (BRPOP, UNA operación).
-MODO_RECLAMO = os.environ.get("MODO_RECLAMO", "ingenuo")
+# Cómo reclama trabajo la réplica: "atomico" (BRPOP, UNA operación — el modo
+# correcto y el default) o "ingenuo" (mirar y después sacar, DOS operaciones
+# con una ventana entre medio). El ingenuo se conserva solo para reproducir
+# la condición de carrera en demos; ver experimentos/fase6_carrera.sh.
+MODO_RECLAMO = os.environ.get("MODO_RECLAMO", "atomico")
 # Pausa artificial dentro de la ventana del modo ingenuo, para hacer visible
 # en segundos un problema que en la realidad ocurre en microsegundos.
 DEMORA_INGENUA = float(os.environ.get("DEMORA_INGENUA", "0.1"))
