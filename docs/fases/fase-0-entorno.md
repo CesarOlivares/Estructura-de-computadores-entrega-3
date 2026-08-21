@@ -5,7 +5,8 @@
 > La Fase 0 se hace una vez por máquina; esta bitácora corresponde a la segunda
 > máquina del equipo (laptop Lenovo, Windows 11, disco C: de 119 GB + D: de 930 GB).
 
-**Estado: EN CURSO** (actualizar al cerrar la fase)
+**Estado: CERRADA (21/08/2026)** — con un pendiente diferido no bloqueante
+(usuario de Ubuntu; ver dificultad #6).
 
 ---
 
@@ -23,13 +24,19 @@ proyecto clonado desde GitHub.
 - [x] Diagnóstico y liberación de espacio en C:: de **0 GB libres a 18 GB** sin
       tocar ninguna herramienta en uso (ver dificultad #1).
 - [x] Ubuntu instalado en `D:\WSL\Ubuntu` con `wsl --install -d Ubuntu --location`,
-      para no cargar el disco C:. *(pendiente de verificar al cierre)*
-- [ ] Usuario Linux creado en el primer arranque de Ubuntu.
-- [ ] Docker Desktop instalado con programa en `D:\Docker\App` y datos de WSL en
-      `D:\Docker\wsl` (`--installation-dir` y `--wsl-default-data-root`).
-- [ ] `docker run hello-world` responde y `docker compose version` ≥ v2.
-- [ ] Identidad de git configurada (`user.name`, `user.email`).
-- [ ] Repositorio clonado con historial (no el ZIP descargado de GitHub).
+      para no cargar el disco C:. Arranca y ejecuta comandos (verificado).
+- [ ] ~~Usuario Linux creado~~ **Diferido** (no bloqueante; ver dificultad #6).
+- [x] Docker Desktop 4.87 instalado con programa en `D:\Docker\App` y datos de WSL
+      en `D:\Docker\wsl` (`--installation-dir` y `--wsl-default-data-root`);
+      disco del motor verificado en D: (1,7 GB).
+- [x] `docker run hello-world` responde ("Hello from Docker!") y
+      `docker compose version` → v5.4.0.
+- [x] Identidad de git configurada; commits verificados como atribuidos a la
+      cuenta de GitHub del integrante.
+- [x] Repositorio clonado con historial. Se agregaron los commits
+      `chore: initialize repository` (README, .gitignore, bitácoras) y
+      `demo: throwaway queue prototype` (la demo de la Fase 1, que faltaba
+      en el repositorio).
 
 ## Principales dificultades
 
@@ -62,6 +69,23 @@ proyecto clonado desde GitHub.
    Docker (imágenes y contenedores, lo que realmente crece) con
    `--wsl-default-data-root` del instalador de Docker Desktop.
 
+5. **Ubuntu instalado pero incapaz de arrancar (`E_UNEXPECTED`).** Tras la
+   instalación, todo intento de arranque fallaba con "Error catastrófico",
+   incluso no interactivo y tras reiniciar el servicio. Se descartó la consola
+   (falló igual en PowerShell directo) y el disco (D: es NTFS). La causa era la
+   versión de WSL (2.4.13, antigua): al actualizar a 2.7.12 con `wsl --update`,
+   el arranque quedó corregido de inmediato. *Lección: ante un error opaco del
+   runtime, actualizar la plataforma antes de reinstalar el contenido.*
+
+6. **El asistente de primer arranque de Ubuntu no es apto para sesiones no
+   interactivas.** El aprovisionamiento inicial quedó esperando indefinidamente
+   la creación del usuario, entrada que una sesión en segundo plano no puede
+   entregar. Como Docker Desktop trae su propia distro (`docker-desktop`) y el
+   proyecto entero corre sobre Docker, **el usuario de Ubuntu se difirió**: es
+   una comodidad (terminal Linux de trabajo), no un requisito. Se creará cuando
+   haga falta con una sesión interactiva real (abrir "Ubuntu" desde el menú
+   Inicio).
+
 ## Decisiones tomadas en esta fase
 
 - **Ubuntu y datos de Docker en D:, no en C:** — por espacio (ver dificultad #4).
@@ -79,5 +103,5 @@ proyecto es la Fase 2 — Diseño en papel**: contratos de las tres APIs, esquem
 las tablas `ordenes` y `eventos`, y criterio de cuello de botella, todo en
 `docs/diseno.md`. No se escribe código de servicios hasta cerrar ese documento.
 
-Pendiente administrativo que sigue abierto: correo al profesor (confirmar Caso 2
-para el Grupo 2, autorización del grupo de 2 personas, respaldo por escrito).
+(El pendiente administrativo del correo al profesor quedó descartado el
+21/08/2026 por decisión del equipo.)

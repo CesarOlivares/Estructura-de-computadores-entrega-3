@@ -922,11 +922,6 @@ puedan explicar sin leerlo.
 
 ## 11. Pendientes administrativos
 
-Correo al profesor con tres preguntas, aún sin enviar:
-
-1. ¿Al Grupo 2 le corresponde el Caso 2?
-2. ¿Está autorizado trabajar como grupo de 2, dado que el enunciado pide 3 a 4?
-3. Confirmación por escrito de lo conversado en clase.
-
-Recordárselo al usuario si no lo ha hecho: si el grupo debe fusionarse, conviene
-saberlo temprano y no a mitad de semana.
+**Resuelto (21/08/2026):** el correo al profesor con las tres preguntas
+(caso asignado, grupo de 2, respaldo por escrito) quedó descartado por decisión
+del equipo. No volver a recordarlo.
