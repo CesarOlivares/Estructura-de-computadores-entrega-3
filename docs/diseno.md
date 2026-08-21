@@ -221,10 +221,22 @@ Por qué espera y no las alternativas:
    planta llamaría cuello de botella.
 
 Clasificación por etapa: `normal` / `advertencia` / `critico` según umbrales
-sobre la espera promedio. **Los valores exactos de los umbrales y el tamaño
-definitivo de la ventana quedan para la Fase 10** (decisión abierta #2), cuando
-haya datos reales para calibrarlos. Valores provisionales de trabajo: ventana
-60 s; advertencia ≈ 1.5× el tiempo de ciclo de la etapa; crítico ≈ 3×.
+sobre la espera promedio.
+
+**Decisión abierta #2 — CERRADA en la Fase 10** con los valores provisionales
+confirmados contra datos reales de saturación:
+
+| Parámetro | Valor | Por qué |
+|---|---|---|
+| Ventana móvil | **60 s** | Bastante más larga que el ciclo más largo (12 s): promedia varias órdenes y no oscila; y lo bastante corta para que el estado se recupere en ~1 min al bajar la carga. |
+| Advertencia | **espera ≥ 1.5 × ciclo de la etapa** | Esperar más de una vez y media el propio ciclo ya indica que la cola no se drena al ritmo que llega. |
+| Crítico | **espera ≥ 3 × ciclo de la etapa** | Espera del triple del ciclo = backlog sostenido, no una fluctuación. |
+
+Los umbrales son **relativos al ciclo de cada etapa** (no un valor absoluto
+igual para todas): 10 s de espera son gravísimos para sellado (ciclo 3 s) y
+poca cosa para envasado (12 s). Un umbral absoluto señalaría siempre a la
+etapa lenta — el error que este criterio evita. Configurables por entorno:
+`VENTANA_S`, `FACTOR_ADVERTENCIA`, `FACTOR_CRITICO`, `TIEMPOS_CICLO`.
 
 ---
 

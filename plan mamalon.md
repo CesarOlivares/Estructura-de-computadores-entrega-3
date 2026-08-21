@@ -849,13 +849,27 @@ arreglarla.**
 
 ## 10. Estado actual
 
-**Actualizado 21/08/2026.** Fases 0 y 1 completas y verificadas — la Fase 0
-además rehecha y verificada en la **máquina 2** (ver `docs/fases/fase-0-entorno.md`;
-Ubuntu y datos de Docker viven en D: por falta de espacio en C:). **Fase 2:**
-diseño escrito y commiteado en `docs/diseno.md`; su prueba oficial (cuestionario
-§6 respondido por ambos sin mirar) **sigue pendiente y es bloqueante antes de
-repartir las fases 8–11**. **Fase 3 completa y verificada** (batería de 8 casos
-contra el contrato, todos pasando). **La siguiente es la Fase 4.**
+**Actualizado 21/08/2026 (tarde).** Fases **0 a 10 completas y verificadas**,
+cada una con su commit y su bitácora en `docs/fases/`. La Fase 0 además
+rehecha y verificada en la **máquina 2** (ver `docs/fases/fase-0-entorno.md`;
+Ubuntu y datos de Docker viven en D: por falta de espacio en C:).
+
+Pendiente transversal: la **prueba de equipo de la Fase 2** (cuestionario de
+`docs/diseno.md` §6 respondido por ambos sin mirar el documento) sigue sin
+rendirse. Ya no bloquea el reparto (8–10 están hechas), pero es obligatoria
+antes de la defensa.
+
+Hitos técnicos ya demostrados: condición de carrera reproducida y resuelta
+(Fase 6, par de commits), balanceo por demanda con réplica lenta procesando
+menos (Fase 7), persistencia que sobrevive a `docker compose down` (Fase 8),
+métricas coherentes con los ciclos configurados (Fase 9: servicios promedio
+4.27/12.31/3.16/7.17 s contra ciclos 4/12/3/7 s), y detección de cuello de
+botella que pasa a crítico y se recupera **sola** (Fase 10, decisión abierta
+#2 cerrada: ventana 60 s, advertencia ≥1.5× ciclo, crítico ≥3× ciclo).
+
+**La siguiente es la Fase 11 (UI Streamlit)**, que incluye implementar
+`GET /metricas/historico` en metrics-api (contrato ya definido en
+`docs/diseno.md` §1.3). Después 12 → 13 → 14 → 15 en orden.
 
 ### Lo que ya está hecho
 
@@ -876,9 +890,10 @@ contra el contrato, todos pasando). **La siguiente es la Fase 4.**
 
 ### Lo que falta
 
-Las fases 4 a 15, más la **prueba de equipo de la Fase 2** (cuestionario de
-`docs/diseno.md` §6, ambos integrantes sin mirar el documento). El detalle del
-avance por fase vive en las bitácoras de `docs/fases/`.
+Las fases 11 a 15, más la **prueba de equipo de la Fase 2** (cuestionario de
+`docs/diseno.md` §6, ambos integrantes sin mirar el documento) y
+`GET /metricas/historico` (va junto con la Fase 11). El detalle del avance
+por fase vive en las bitácoras de `docs/fases/`.
 
 ### Reparto sugerido entre los dos
 
@@ -919,10 +934,10 @@ de rúbrica):
 
 ### Siguiente acción concreta
 
-Fase 4: agregar el servicio `redis` al `docker-compose.yml` y hacer que
-`orders-api` encole el id de cada orden nueva en `cola:fileteado`, con el host
-de Redis por variable de entorno. Además, en cuanto estén juntos: pasar la
-prueba de equipo de la Fase 2 (es requisito antes de repartir las fases 8–11).
+Fase 11: la UI Streamlit (timeline, carga por réplica, alerta de cuello,
+histórico y formulario de creación de órdenes), implementando de paso
+`GET /metricas/historico` en metrics-api. Además, en cuanto estén juntos:
+pasar la prueba de equipo de la Fase 2 (obligatoria antes de la defensa).
 
 ---
 

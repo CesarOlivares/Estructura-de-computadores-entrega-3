@@ -52,6 +52,9 @@ services:
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
       VENTANA_S: ${VENTANA_S:-60}
+      # Mismos CICLO_* que usan las estaciones: si un experimento cambia un
+      # tiempo de ciclo, los umbrales del cuello de botella se ajustan solos.
+      TIEMPOS_CICLO: "fileteado:${CICLO_FILETEADO:-4},envasado:${CICLO_ENVASADO:-12},sellado:${CICLO_SELLADO:-3},esterilizacion:${CICLO_ESTERILIZACION:-7}"
     volumes:
       - datos:/datos
     depends_on:

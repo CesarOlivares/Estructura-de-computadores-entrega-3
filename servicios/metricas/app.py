@@ -25,6 +25,28 @@ import bd
 ETAPAS = os.environ.get("ETAPAS", "fileteado,envasado,sellado,esterilizacion").split(",")
 VENTANA_S = float(os.environ.get("VENTANA_S", "60"))
 
+# --- Cuello de botella (Fase 10) ---------------------------------------------
+# Criterio (docs/diseno.md §4): la etapa con MAYOR espera promedio en la
+# ventana, si supera su umbral de advertencia. Espera, no servicio: un ciclo
+# largo es una tarea lenta; un atasco es trabajo llegando más rápido de lo
+# que se drena, y eso se ve en la espera.
+#
+# Los umbrales son RELATIVOS al tiempo de ciclo de cada etapa: 10 s de espera
+# son gravísimos para sellado (ciclo 3 s) y poca cosa para envasado (12 s).
+# Un umbral absoluto igual para todas señalaría siempre a la etapa lenta,
+# que es justamente el error que este criterio evita.
+TIEMPOS_CICLO = {
+    nombre: float(ciclo)
+    for nombre, ciclo in (
+        par.split(":")
+        for par in os.environ.get(
+            "TIEMPOS_CICLO", "fileteado:4,envasado:12,sellado:3,esterilizacion:7"
+        ).split(",")
+    )
+}
+FACTOR_ADVERTENCIA = float(os.environ.get("FACTOR_ADVERTENCIA", "1.5"))
+FACTOR_CRITICO = float(os.environ.get("FACTOR_CRITICO", "3"))
+
 r = redis.Redis(
     host=os.environ.get("REDIS_HOST", "redis"),
     port=int(os.environ.get("REDIS_PORT", "6379")),
@@ -106,10 +128,57 @@ def calcular_metricas(ventana_s: float) -> dict:
     }
 
 
+def clasificar(espera: Optional[float], ciclo: float) -> str:
+    """normal / advertencia / critico según la espera contra el ciclo de la etapa.
+
+    Sin espera medible en la ventana (nadie arrancó una orden ahí) no hay
+    evidencia de atasco: normal. Así la etapa VUELVE SOLA a normal cuando la
+    carga baja y sus esperas viejas salen de la ventana.
+    """
+    if espera is None:
+        return "normal"
+    if espera >= ciclo * FACTOR_CRITICO:
+        return "critico"
+    if espera >= ciclo * FACTOR_ADVERTENCIA:
+        return "advertencia"
+    return "normal"
+
+
+def detectar_cuello(ventana_s: float) -> dict:
+    """Contrato en docs/diseno.md §1.3: {cuello, estados, razon}."""
+    datos = calcular_metricas(ventana_s)
+
+    estados = {}
+    cuello, espera_cuello = None, None
+    for etapa in ETAPAS:
+        espera = datos["etapas"][etapa]["espera_promedio_s"]
+        estados[etapa] = clasificar(espera, TIEMPOS_CICLO[etapa])
+        # Candidata a cuello: sobre advertencia y con la mayor espera de todas.
+        if estados[etapa] != "normal" and (espera_cuello is None or espera > espera_cuello):
+            cuello, espera_cuello = etapa, espera
+
+    if cuello is None:
+        razon = f"ninguna etapa supera su umbral de advertencia en la ventana de {ventana_s:g} s"
+    else:
+        umbral = "crítico" if estados[cuello] == "critico" else "de advertencia"
+        razon = (
+            f"espera promedio {espera_cuello:g} s en la ventana de {ventana_s:g} s, "
+            f"sobre el umbral {umbral} ({TIEMPOS_CICLO[cuello]:g} s de ciclo × "
+            f"{FACTOR_CRITICO if estados[cuello] == 'critico' else FACTOR_ADVERTENCIA:g})"
+        )
+    return {"cuello": cuello, "estados": estados, "razon": razon, "ventana_s": ventana_s}
+
+
 @app.get("/metricas")
 def metricas(ventana_s: Optional[float] = Query(default=None, gt=0)) -> dict:
     """Promedios por etapa en la ventana móvil (default VENTANA_S)."""
     return calcular_metricas(ventana_s or VENTANA_S)
+
+
+@app.get("/metricas/cuello")
+def cuello(ventana_s: Optional[float] = Query(default=None, gt=0)) -> dict:
+    """Qué etapa es el cuello de botella y por qué (null si no hay)."""
+    return detectar_cuello(ventana_s or VENTANA_S)
 
 
 @app.get("/salud")
