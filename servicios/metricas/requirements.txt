@@ -1,0 +1,5 @@
+# Dependencias del metrics-api (Fase 9).
+# Mismas versiones fijadas que en los otros servicios: un solo set probado.
+fastapi==0.141.1
+uvicorn==0.52.4
+redis==8.1.0
