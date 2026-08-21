@@ -1,0 +1,7 @@
+# Versiones fijas: son exactamente las que se probaron. Sin fijarlas, un
+# `docker compose build` de la semana que viene podria traer otra version y
+# romper la reproducibilidad que exige la Fase 13.
+streamlit==1.62.0
+plotly==6.9.0
+requests==2.32.3
+redis==5.0.8

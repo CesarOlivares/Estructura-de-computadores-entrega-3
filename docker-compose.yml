@@ -123,5 +123,22 @@ services:
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
 
+  # Tablero de operaciones (Fase 11). Es la cara visible del sistema: consume
+  # metrics-api para todos los numeros y orders-api para ingresar lotes. Lee
+  # ademas el hash `estado:replicas` de Redis para el indicador de carga por
+  # replica, que es el unico dato que ningun servicio expone por HTTP.
+  ui:
+    build: ./servicios/ui
+    container_name: ui
+    ports:
+      - "8501:8501"
+    environment:
+      URL_ORDENES: http://ordenes:8000
+      URL_METRICAS: http://metricas:8001
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   datos:

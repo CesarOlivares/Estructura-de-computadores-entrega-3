@@ -1,0 +1,21 @@
+# Tema fijo en claro.
+#
+# Los colores del tablero estan validados contra ESTA superficie (#fcfcfb): se
+# comprobo que las cuatro etapas se distinguen entre si tambien con daltonismo.
+# Si se dejara que el tema siguiera al del sistema operativo, la mitad de las
+# veces los graficos se dibujarian sobre un fondo para el que la paleta no fue
+# verificada.
+
+[theme]
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#f9f9f7"
+secondaryBackgroundColor = "#fcfcfb"
+textColor = "#0b0b0b"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
