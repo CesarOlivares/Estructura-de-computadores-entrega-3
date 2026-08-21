@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Configuración local y secretos
+.env
+
+# Bases de datos generadas en ejecución
+*.db
+*.sqlite3
+
+# Sistema operativo
+Thumbs.db
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
