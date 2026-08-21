@@ -1,0 +1,392 @@
+\documentclass[11pt,a4paper]{article}
+
+% ─── PAQUETES ────────────────────────────────────────────────────────────────
+\usepackage[spanish, es-tabla]{babel}
+\deactivatequoting
+\usepackage[margin=2.3cm, top=3.9cm, bottom=2.4cm]{geometry}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{eso-pic}
+\usepackage{setspace}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
+
+\usepackage{iftex}
+\ifpdftex
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+  \providecommand{\robotocon}{\sffamily}
+\fi
+
+% ─── COLORES USACH ───────────────────────────────────────────────────────────
+\definecolor{usachteal}{RGB}{0,155,138}
+\definecolor{usachdark}{RGB}{28,32,38}
+\definecolor{alerta}{RGB}{214,93,45}
+\definecolor{suave}{RGB}{245,247,247}
+
+\hypersetup{hidelinks, colorlinks=true, linkcolor=usachdark, urlcolor=usachteal}
+
+% ─── ESTILOS TIKZ ────────────────────────────────────────────────────────────
+\tikzset{
+  svc/.style={rectangle, rounded corners=2pt, minimum width=2.55cm, minimum height=0.62cm,
+              text centered, draw=usachdark!55, fill=white, font=\scriptsize\bfseries},
+  svcteal/.style={svc, draw=usachteal, fill=usachteal!14},
+  svcwarn/.style={svc, draw=alerta, fill=alerta!12},
+  papel/.style={rectangle, minimum width=1.35cm, minimum height=0.4cm, text centered,
+                draw=usachdark!45, fill=white, font=\tiny},
+  nodo/.style={rectangle, rounded corners=4pt, draw=usachteal!70, dashed, thick, inner sep=7pt},
+  fl/.style={-{Stealth[length=4pt]}, thick, color=usachdark!75},
+  flteal/.style={-{Stealth[length=4pt]}, thick, color=usachteal},
+  et/.style={font=\tiny, color=usachdark!80, inner sep=1.5pt, fill=white},
+}
+
+% ─── FONDO INSTITUCIONAL ─────────────────────────────────────────────────────
+\AddToShipoutPictureBG{%
+  \AtPageUpperLeft{%
+    \raisebox{-\paperheight}{%
+      \includegraphics[width=\paperwidth, height=\paperheight]{portada.png}%
+    }%
+  }%
+}
+
+% ─── SECCIONES ───────────────────────────────────────────────────────────────
+\titleformat{\section}{\normalsize\bfseries\color{usachteal}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\small\bfseries\color{usachdark}}{\thesubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+\titlespacing*{\subsection}{0pt}{7pt}{2pt}
+
+% ─── ENCABEZADO ──────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{50pt}
+\fancyhead[L]{{\small\robotocon\bfseries\color{usachdark} USACH\;|\;%
+  \color{usachteal} ECSD 2026-1 \textendash\ EVALUACIÓN 3 \textendash\ GRUPO 2}}
+\fancyhead[R]{\small\color{gray}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\setstretch{1.12}
+\setlength{\parskip}{4.5pt}
+\setlength{\parindent}{0pt}
+\captionsetup{font=footnotesize, labelfont={bf,color=usachteal}, skip=3pt}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% ─── MARCADOR "EN LA COCINA" ─────────────────────────────────────────────────
+\newcommand{\cocina}[1]{%
+  \vspace{1pt}%
+  {\small\color{usachteal}\textbf{En la cocina:} \textit{#1}}\par\vspace{1pt}}
+
+\begin{document}
+
+% ─── TÍTULO COMPACTO ─────────────────────────────────────────────────────────
+{\color{usachteal}\rule{\textwidth}{1.2pt}}\vspace{-4pt}
+
+{\large\bfseries\color{usachdark} Caso 2 --- Línea de Producción con Balanceo Dinámico}
+
+{\small\color{usachdark!75} Documento de trabajo: la idea en lenguaje cotidiano, los conceptos del curso, la arquitectura propuesta y el plan de ejecución.\\
+\textbf{Entrega:} lunes 24/08/2026, 11:30 hrs. --- informe PDF, presentación PDF, código fuente (.zip) y demo funcional.}
+
+\vspace{-2pt}{\color{usachteal}\rule{\textwidth}{0.6pt}}
+
+% =============================================================================
+\section{Qué hay que construir}
+
+La evaluación pide diseñar, implementar y \textbf{desplegar} un sistema distribuido que simule una línea de ensamblaje industrial. El problema que da sentido al caso es que el \textbf{cuello de botella se desplaza}: la estación que hoy frena la línea puede no ser la misma en diez minutos. Frente a eso, el sistema debe replicar una estación en varias instancias, repartir las órdenes entre ellas sin que dos tomen la misma, y detectar en vivo dónde se está acumulando el trabajo.
+
+\vspace{-3pt}
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabular}{@{}L{5.1cm} L{10.1cm}@{}}
+\toprule
+\textbf{Exigencia del enunciado} & \textbf{Cómo la cubrimos} \\
+\midrule
+Mínimo 3 servicios o procesos & Cuatro: Órdenes, Estación (replicada), Coordinación de carga y Métricas \\
+Mínimo 2 nodos lógicos & Tres contenedores Docker, uno por grupo funcional \\
+UI con interacción real & Streamlit: crea órdenes, ajusta tiempos y muestra el estado en vivo \\
+Persistencia obligatoria & Base de datos con órdenes, eventos e historial de métricas \\
+Reproducibilidad & Todo el sistema levanta con \texttt{docker compose up}, más README \\
+Manejo básico de errores & Validación de entradas, códigos HTTP correctos y mensajes claros en la UI \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =============================================================================
+\section{La idea completa, sin un solo término técnico}
+
+Antes de cualquier definición conviene tener una imagen mental concreta. Lo que vamos a construir es, punto por punto, la versión en software de la cocina de una sandwichería en hora punta. Si se entiende la cocina, se entiende el trabajo completo.
+
+\subsection{La cocina}
+
+Llega un cliente al mesón y pide un italiano. El cajero anota el pedido en un papelito y lo cuelga en un riel. Detrás hay tres sandwicheros trabajando en paralelo: cada vez que uno termina un sándwich, se da vuelta, saca el siguiente papelito del riel y lo prepara. En la pared hay una pizarra donde el dueño va anotando cuánto se demoró cada pedido.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=1, transform shape]
+
+\node[svc, minimum width=1.5cm] (cli) at (0,1.0) {Cliente};
+\node[svcteal, minimum width=1.7cm] (caja) at (2.9,1.0) {Cajero};
+
+% riel de papelitos
+\node[papel] (p1) at (6.0,1.75) {pedido \#103};
+\node[papel] (p2) at (6.0,1.28) {pedido \#102};
+\node[papel] (p3) at (6.0,0.81) {pedido \#101};
+\node[font=\tiny\bfseries, color=usachdark!80] at (6.0,2.28) {RIEL DE PEDIDOS};
+\begin{scope}[on background layer]
+  \node[nodo, draw=usachdark!35, fit=(p1)(p2)(p3), inner sep=4pt] (riel) {};
+\end{scope}
+
+\node[svc, minimum width=1.9cm] (s1) at (10.4,1.95) {Sandwichero 1};
+\node[svc, minimum width=1.9cm] (s2) at (10.4,1.15) {Sandwichero 2};
+\node[svc, minimum width=1.9cm] (s3) at (10.4,0.35) {Sandwichero 3};
+
+\node[svcteal, minimum width=1.6cm] (piz) at (14.3,1.15) {Pizarra};
+
+\draw[fl] (cli) -- (caja) node[et, midway] {pide};
+\draw[fl] (caja) -- (riel.west) node[et, midway] {cuelga};
+\draw[flteal] (riel.east) -- (s2.west) node[et, midway] {toman de a uno};
+\draw[fl] (s1.east) -- (piz.west);
+\draw[fl] (s3.east) -- (piz.west);
+\draw[fl] (s2.east) -- (piz.west) node[et, midway] {anotan};
+\end{tikzpicture}
+\caption{La cocina en hora punta. Todo el trabajo consiste en construir esto en software.}
+\end{figure}
+
+\subsection{Qué sale mal, y por qué existe este trabajo}
+
+Dos sandwicheros terminan al mismo tiempo. Los dos se dan vuelta, los dos estiran la mano y los dos agarran \emph{el mismo} papelito. Resultado: se preparan dos italianos idénticos, uno se bota, y el cliente que venía después sigue esperando sin que nadie se haya dado cuenta.
+
+En una cocina de verdad esto casi no pasa, porque los tres se ven las caras y uno le grita al otro. Pero imaginen ahora que cada sandwichero está en una pieza separada, sin verse ni oírse, y que cada uno mira una copia del riel por una pantalla. Ahí el choque pasaría todo el rato. \textbf{Esa cocina de piezas separadas es exactamente un sistema distribuido:} los que trabajan no comparten el mismo espacio, no se ven, y por lo tanto hay que inventar una regla explícita para que no se pisen.
+
+\subsection{Cómo se arregla}
+
+La solución de la cocina es poner a alguien en el medio. Un \emph{cantador} se queda con el riel y va entregando los papelitos de a uno: nadie toma nada por su cuenta, todos le piden a él. Como el cantador atiende a una persona a la vez, es imposible que dos reciban el mismo pedido.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=1, transform shape]
+
+\node[font=\scriptsize\bfseries, color=alerta] at (0,2.55) {Cada uno toma por su cuenta};
+\node[svc, minimum width=1.7cm, fill=suave] (q1) at (0,1.6) {Riel: \#101};
+\node[svcwarn, minimum width=1.75cm] (r1a) at (-1.5,0) {Sandwichero 1};
+\node[svcwarn, minimum width=1.75cm] (r1b) at (1.5,0) {Sandwichero 2};
+\draw[fl, color=alerta] (r1a) -- (q1);
+\draw[fl, color=alerta] (r1b) -- (q1);
+\node[circle, draw=alerta, fill=white, thick, inner sep=1pt,
+      font=\footnotesize\bfseries, text=alerta] at (0,0.82) {$\times$};
+\node[font=\tiny, text=alerta, text width=4.4cm, align=center] at (0,-0.9)
+  {Ambos se llevan el \#101:\\ el sándwich se prepara dos veces};
+
+\node[font=\scriptsize\bfseries, color=usachteal] at (8.6,2.55) {Un intermediario entrega de a uno};
+\node[svc, minimum width=1.7cm, fill=suave] (q2) at (8.6,1.72) {Riel: \#101, \#102};
+\node[svcteal, minimum width=1.9cm] (redis) at (8.6,0.86) {Cantador};
+\node[svc, minimum width=1.75cm] (r2a) at (6.6,-0.2) {Sandwichero 1};
+\node[svc, minimum width=1.75cm] (r2b) at (10.6,-0.2) {Sandwichero 2};
+\draw[flteal] (q2) -- (redis);
+\draw[flteal] (redis) -- (r2a) node[et, midway, xshift=-3pt] {\#101};
+\draw[flteal] (redis) -- (r2b) node[et, midway, xshift=3pt] {\#102};
+\node[font=\tiny, text=usachteal, text width=5.8cm, align=center] at (8.6,-1.0)
+  {Al atender de a uno, cada pedido se entrega\\ a un solo sandwichero};
+
+\draw[dashed, color=usachdark!25] (4.2,-1.5) -- (4.2,2.8);
+\end{tikzpicture}
+\caption{El choque entre dos trabajadores y su solución mediante un intermediario que entrega de a uno.}
+\end{figure}
+
+Y aquí aparece algo que vale la pena notar, porque es el título del caso. Como cada sandwichero pide el siguiente papelito \emph{recién cuando se desocupa}, el que trabaja más rápido termina haciendo más sándwiches, sin que nadie haya tenido que repartir el trabajo por adelantado. Si uno anda lento porque le tocó un pedido complicado, los otros dos simplemente piden más seguido y absorben la diferencia. \textbf{El trabajo se reparte solo.}
+
+\subsection{Cómo saber dónde se está atascando el local}
+
+Si la fila de papelitos en el riel crece y crece, algo anda mal. Pero cuidado con la conclusión fácil. Que armar un italiano tome cuatro minutos no es un problema: eso es simplemente lo que demora un italiano. El problema es que un papelito lleve veinte minutos colgado antes de que alguien lo tome siquiera.
+
+Lo primero es el \emph{trabajo}; lo segundo es el \emph{atasco}. Y solo lo segundo indica que hace falta otro sandwichero. Distinguir esos dos tiempos es todo el criterio de diagnóstico del sistema, y es lo que hay que tener claro antes de escribir una línea de código.
+
+\subsection{Diccionario: de la cocina a la materia}
+
+\vspace{-3pt}
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabular}{@{}L{3.5cm} L{3.6cm} L{8.1cm}@{}}
+\toprule
+\textbf{En la cocina} & \textbf{Nombre en el curso} & \textbf{Qué es exactamente} \\
+\midrule
+Sandwicheros en piezas separadas & Sistema distribuido & Componentes autónomos que no comparten memoria y coordinan enviándose mensajes por la red \\
+El papelito del pedido & Orden / mensaje & Estructura de datos en formato JSON que viaja de un servicio a otro \\
+El riel & Cola de trabajo & Estructura donde se acumulan las órdenes pendientes de ser tomadas \\
+Cada sandwichero & Réplica de la estación & Instancia idéntica del mismo servicio, ejecutándose en paralelo \\
+Que dos tomen el mismo papelito & Condición de carrera & Resultado que depende del orden imprevisible en que ocurren dos accesos simultáneos \\
+El cantador & Exclusión mutua distribuida & Mecanismo que garantiza que solo un proceso accede a un recurso compartido a la vez \\
+Que el más rápido haga más & Balanceo dinámico de carga & Reparto por demanda del trabajador, en vez de asignación previa y fija \\
+Lo que espera el cliente & Lead time & Tiempo total desde que la orden entra hasta que se completa \\
+El riel que crece & Cuello de botella & Etapa cuya capacidad limita el rendimiento del sistema completo \\
+La pizarra del dueño & Servicio de métricas & Servicio que calcula tiempos e identifica dónde se acumula el trabajo \\
+El mesón del cajero & Interfaz de usuario & Aplicación web desde la que se opera el sistema \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =============================================================================
+\section{Los mismos conceptos, ahora en el lenguaje del curso}
+
+\subsection{Sistema distribuido, nodo y servicio}
+
+\cocina{tres sandwicheros en piezas separadas que no se ven ni se oyen.}
+
+Un sistema distribuido es una colección de computadores independientes que se presentan al usuario como un único sistema coherente. La diferencia esencial con un programa normal es que \textbf{no hay memoria compartida ni un reloj común}: cada parte solo sabe lo que le han contado por la red, y siempre con retraso.
+
+Un \textbf{nodo lógico} es cada entorno de ejecución aislado; en nuestro caso, cada contenedor Docker. Un \textbf{servicio} es un programa con una sola responsabilidad que expone una interfaz para que otros lo usen. Aquí esa interfaz será REST sobre HTTP: un servicio le hace una petición a otro por la red y recibe una respuesta, intercambiando mensajes en formato JSON.
+
+\subsection{Condición de carrera y exclusión mutua distribuida}
+
+\cocina{los dos sandwicheros estirando la mano hacia el mismo papelito.}
+
+Cuando dos procesos acceden al mismo recurso al mismo tiempo y el resultado depende de cuál llegó primero, se produce una \textbf{condición de carrera}. En un solo computador el problema se resuelve con un \emph{mutex}: una marca en memoria que los hilos revisan antes de entrar a la zona conflictiva. Pero en un sistema distribuido no existe esa memoria común, así que se necesita un árbitro externo al que todos le pregunten. Eso es la \textbf{exclusión mutua distribuida}.
+
+Nuestro árbitro será \textbf{Redis}, que ofrece operaciones atómicas sobre una cola. Atómica significa que la operación ocurre completa o no ocurre: no puede quedar a medias ni entrelazarse con otra. Aunque dos réplicas pidan en el mismo milisegundo, la operación entrega la orden a una sola y la otra recibe la siguiente. Es la Figura 2, cambiando \emph{sandwichero} por \emph{réplica} y \emph{cantador} por \emph{Redis}.
+
+\subsection{Balanceo dinámico de carga}
+
+\cocina{el que se desocupa primero pide el siguiente pedido.}
+
+Repartir el trabajo de forma \textbf{estática} --- por ejemplo, las órdenes pares a la réplica 1 y las impares a la réplica 2 --- funciona solo mientras todas rindan igual. Si una se degrada, su mitad de las órdenes se acumula aunque las demás estén ociosas. El \textbf{balanceo dinámico} invierte la lógica: nadie asigna trabajo por adelantado, sino que cada réplica pide la siguiente orden cuando queda libre. La cola compartida nos entrega ese comportamiento sin lógica adicional.
+
+\subsection{Cómo se mide el rendimiento de la línea}
+
+\cocina{lo que el cliente espera, contra lo que demora armar el sándwich.}
+
+Toda orden atraviesa dos etapas: primero \emph{espera} en la cola, y después es \emph{procesada}. Separar ambos tiempos es lo que permite localizar el cuello de botella.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=1, transform shape]
+  \fill[suave, draw=usachdark!35] (0,0) rectangle (4.4,0.62);
+  \fill[usachteal!22, draw=usachteal] (4.4,0) rectangle (9.5,0.62);
+  \node[font=\scriptsize] at (2.2,0.31) {Tiempo de espera};
+  \node[font=\scriptsize] at (6.95,0.31) {Tiempo de servicio};
+
+  \foreach \x in {0,4.4,9.5} \draw[color=usachdark!55] (\x,-0.12) -- (\x,0.74);
+  \node[font=\tiny, align=center] at (0,-0.45) {$t_{\text{creada}}$\\ \scriptsize el cliente pide};
+  \node[font=\tiny, align=center] at (4.4,-0.45) {$t_{\text{inicio}}$\\ \scriptsize toman el papelito};
+  \node[font=\tiny, align=center] at (9.5,-0.45) {$t_{\text{fin}}$\\ \scriptsize se entrega el pedido};
+
+  \draw[{Stealth[length=4pt]}-{Stealth[length=4pt]}, color=usachteal, thick] (0,1.15) -- (9.5,1.15);
+  \node[fill=white, inner sep=2pt, font=\scriptsize\bfseries, text=usachteal] at (4.75,1.15) {Lead time};
+\end{tikzpicture}
+\caption{Ciclo de vida de una orden. El lead time es la suma de la espera y el servicio.}
+\end{figure}
+
+\vspace{-4pt}
+\[
+\text{Lead time} = t_{\text{fin}} - t_{\text{creada}}
+\qquad\qquad
+\text{Utilización}_i = \frac{\text{tiempo ocupado de la réplica } i}{\text{tiempo total observado}}
+\]
+
+La clave de diagnóstico es que \textbf{un tiempo de servicio alto no es un cuello de botella}: significa simplemente que la tarea es larga. El cuello de botella aparece cuando el \emph{tiempo de espera} crece de forma sostenida, porque indica que llega más trabajo del que la estación puede absorber. Sobre esa señal definiremos los tres estados que pide el enunciado: \textbf{normal}, \textbf{advertencia} y \textbf{crítico}.
+
+% =============================================================================
+\section{Arquitectura propuesta}
+
+Los cuatro servicios se reparten en tres nodos lógicos, y esa división no es arbitraria: agrupa responsabilidades que cambian de escala por motivos distintos. El nodo B es el único que necesita replicarse cuando sube la demanda; el nodo C concentra el estado compartido, que precisamente por ser compartido no puede duplicarse sin coordinación; y el nodo A expone el sistema hacia el operador. Esa separación es la que justifica la arquitectura distribuida frente a una aplicación monolítica, y es el argumento que hay que sostener en el informe y en la defensa.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=1, transform shape]
+
+% ---------- NODO A ----------
+\node[svcteal] (ui) at (0,1.85) {UI --- Streamlit};
+\node[svcteal] (api) at (0,1.0) {\texttt{orders-api}};
+\begin{scope}[on background layer]
+  \node[nodo, fit=(ui)(api), label={[font=\tiny\bfseries, color=usachteal]above:NODO A}] (nA) {};
+\end{scope}
+
+% ---------- NODO B ----------
+\node[svc] (e1) at (5.6,2.05) {\texttt{estacion-1}};
+\node[svc] (e2) at (5.6,1.4) {\texttt{estacion-2}};
+\node[svc] (e3) at (5.6,0.75) {\texttt{estacion-3}};
+\begin{scope}[on background layer]
+  \node[nodo, fit=(e1)(e2)(e3), label={[font=\tiny\bfseries, color=usachteal]above:NODO B --- réplicas}] (nB) {};
+\end{scope}
+
+% ---------- NODO C ----------
+\node[svcteal] (redis) at (11.2,2.05) {Redis --- cola y lock};
+\node[svcteal] (met) at (11.2,1.4) {\texttt{metrics-api}};
+\node[svc, fill=suave] (db) at (11.2,0.75) {Base de datos};
+\begin{scope}[on background layer]
+  \node[nodo, fit=(redis)(met)(db), label={[font=\tiny\bfseries, color=usachteal]above:NODO C}] (nC) {};
+\end{scope}
+
+% ---------- FLECHAS ----------
+\draw[fl] (ui) -- (api) node[et, midway, xshift=15pt] {HTTP};
+\draw[flteal] (api.east) -- (nB.west) node[et, midway, above, yshift=-1pt] {encola};
+\draw[flteal] (nB.east) -- (redis.west) node[et, midway, above, yshift=-1pt] {toma orden};
+\draw[fl] (nB.east) -- (met.west) node[et, midway, below, yshift=2pt] {eventos};
+\draw[fl] (met.south) -- (db.north);
+\draw[fl, rounded corners] (nC.south) -- ++(0,-0.5) -| (nA.south);
+\node[et, font=\tiny] at (5.6,-0.5) {estado y métricas (polling)};
+\end{tikzpicture}
+\caption{La misma cocina, con los nombres del curso: cajero y mesón en el nodo A, sandwicheros en el B, riel, cantador y pizarra en el C.}
+\end{figure}
+
+\vspace{-6pt}
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabular}{@{}L{3.0cm} L{8.4cm} L{3.3cm}@{}}
+\toprule
+\textbf{Servicio} & \textbf{Responsabilidad} & \textbf{Tecnología} \\
+\midrule
+Órdenes & Recibe, valida y encola las órdenes de producción & FastAPI \\
+Estación & Procesa órdenes con tiempos configurables y clasifica su estado & FastAPI (2--3 réplicas) \\
+Coordinación de carga & Entrega cada orden a una sola réplica mediante operaciones atómicas & Redis \\
+Métricas & Calcula lead time por réplica y detecta el cuello de botella & FastAPI \\
+Interfaz de usuario & Crea órdenes, ajusta parámetros y visualiza el estado de la línea & Streamlit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =============================================================================
+\section{Plan de ejecución}
+
+\vspace{-3pt}
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabular}{@{}L{2.1cm} L{13.1cm}@{}}
+\toprule
+\textbf{Día} & \textbf{Objetivo} \\
+\midrule
+Dom 16 & Instalar Docker, crear el repositorio Git y confirmar con el profesor el caso asignado y la conformación del grupo \\
+Lun 17 & Definir en conjunto los contratos de las API, el esquema de datos y los umbrales de las métricas \\
+Mar 18 & Órdenes, estación y cola con Redis. \textit{Meta: una orden entra por la API y sale procesada} \\
+Mié 19 & Métricas y UI. Punto de control sobre el alcance final \\
+Jue 20 & Integración, validaciones, logging, \texttt{docker-compose} y README \\
+Vie 21 & Experimentos con 1, 2 y 3 réplicas; provocar un cuello de botella y registrar los resultados \\
+Sáb 22 & Redacción del informe \\
+Dom 23 & Presentación y ensayo del demo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{-4pt}
+El informe se escribe \textbf{en paralelo desde el lunes}, no al final: el marco teórico no depende del código y concentra buena parte del puntaje. Los commits deben repartirse a lo largo de la semana, ya que la gestión mediante repositorio Git se evalúa de forma explícita.
+
+\subsection{Decisiones que quedan abiertas}
+
+\begin{enumerate}[leftmargin=1.1em, itemsep=1pt, topsep=2pt]
+\item \textbf{Criterio de cuello de botella:} definir si se mide por largo de cola, por utilización de la réplica o por tiempo de espera promedio, y fijar los umbrales de advertencia y crítico.
+\item \textbf{Mecanismo de coordinación:} extracción atómica desde la cola de Redis frente a un bloqueo explícito con tiempo de expiración. La primera opción es más simple y más difícil de romper.
+\item \textbf{Alcance ampliado:} evaluar el miércoles la incorporación de un \emph{broker} de mensajería para el transporte de eventos entre servicios, condicionada a que el núcleo esté operativo.
+\end{enumerate}
+
+\end{document}

@@ -1,0 +1,1054 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── PAQUETES DE IDIOMA Y DIBUJO ─────────────────────────────────────────────
+\usepackage[spanish, es-tabla]{babel}
+\deactivatequoting
+\usepackage[margin=2.54cm, top=4.2cm, bottom=3.2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{hyperref}
+\hypersetup{hidelinks, colorlinks=true, linkcolor=usachdark, citecolor=usachteal, urlcolor=usachteal}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{eso-pic}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{longtable}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
+
+% ─── GESTIÓN DE COMPILADORES Y FUENTES ───────────────────────────────────────
+\usepackage{iftex}
+\ifpdftex
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+  \providecommand{\robotocon}{\sffamily}
+\else
+  \usepackage{fontspec}
+  \setmainfont{Libre Franklin}[
+    UprightFont = *-Thin,
+    BoldFont    = *-Bold,
+  ]
+  \newfontfamily\robotocon{Roboto Condensed}[
+    UprightFont = *-Regular,
+    BoldFont    = *-Bold,
+  ]
+\fi
+
+% ─── COLORES USACH ───────────────────────────────────────────────────────────
+\definecolor{usachteal}{RGB}{0,155,138}
+\definecolor{usachdark}{RGB}{28,32,38}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+
+% ─── CONFIGURACIÓN DE LISTINGS PARA MIPS ──────────────────────────────────────
+\lstdefinelanguage{MIPS}{
+  keywords={la, li, lw, sw, add, addi, sub, slt, beq, bne, j, jal, jr, syscall, move, sll},
+  keywordstyle=\color{usachteal}\bfseries,
+  sensitive=false,
+  comment=[l]{\#},
+  commentstyle=\color{codegreen},
+  string=[b]",
+  stringstyle=\color{codepurple},
+}
+
+\lstdefinestyle{mipsstyle}{
+    language=MIPS,
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{usachteal}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=4
+}
+\lstset{style=mipsstyle}
+
+% ─── CONFIGURACIÓN DE TIKZ PARA DIAGRAMAS DE FLUJO ───────────────────────────
+\tikzset{
+  startstop/.style={rectangle, rounded corners, minimum width=2.8cm, minimum height=0.8cm, text centered, draw=usachteal, fill=usachteal!15, font=\small\bfseries},
+  process/.style={rectangle, minimum width=2.8cm, minimum height=0.8cm, text centered, draw=usachdark, fill=usachdark!5, font=\small},
+  decision/.style={diamond, aspect=2, minimum width=2.5cm, minimum height=0.8cm, text centered, draw=usachteal, fill=orange!15, font=\small},
+  arrow/.style={thick,->,>=stealth,color=usachdark}
+}
+
+% ─── IMAGEN DE FONDO ─────────────────────────────────────────────────────────
+\AddToShipoutPictureBG{%
+  \AtPageUpperLeft{%
+    \raisebox{-\paperheight}{%
+      \includegraphics[width=\paperwidth, height=\paperheight]{portada.png}%
+    }%
+  }%
+}
+
+% ─── ESTILOS DE SECCIÓN ──────────────────────────────────────────────────────
+\titleformat{\section}
+  {\large\bfseries\color{usachteal}}
+  {\thesection.}{0.5em}{}
+
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{usachdark}}
+  {\thesubsection.}{0.5em}{}
+
+\titleformat{\subsubsection}
+  {\small\bfseries\color{usachteal}}
+  {\thesubsubsection.}{0.5em}{}
+
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{2pt}
+
+% ─── ENCABEZADO Y PIE ────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{52pt}
+
+\fancyhead[L]{%
+  {\small\robotocon\bfseries\color{usachdark} USACH\;|\;%
+   \color{usachteal} INFORME TÉCNICO ECSD - CONJUNTO 1}%
+}
+\fancyhead[R]{%
+  \small\color{gray}\thepage%
+}
+
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ─── INTERLINEADO ────────────────────────────────────────────────────────────
+\setstretch{1.3}
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+
+\tolerance=1
+\emergencystretch=\maxdimen
+\hyphenpenalty=10000
+\hbadness=10000
+
+% ─── TABLAS ──────────────────────────────────────────────────────────────────
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\author{César Olivares \\ Simón García-Huidobro}
+
+\begin{document}
+
+% =============================================================================
+% PORTADA
+% =============================================================================
+\begin{titlepage}
+
+% --- ENCABEZADO CON LOGO ---
+\begin{flushright}
+\begin{tabular}{cl}
+ & \multirow{4}{*}{\includegraphics[width=2.8cm]{logoBN.png}} \\[5pt]
+ \textbf{UNIVERSIDAD DE SANTIAGO DE CHILE} & \\[3pt]
+ \textbf{DEPARTAMENTO DE INGENIERÍA MECÁNICA} & \\[3pt]
+ \textbf{INGENIERÍA CIVIL MECATRÓNICA} &
+\end{tabular}
+\end{flushright}
+
+\vspace{1.5cm}
+
+% --- TÍTULO ---
+\begin{center}
+{\Large \textbf{Estructura de Computadores y Sistemas Digitales}}\\[8pt]
+{\large \textbf{Análisis de Arquitecturas de Computadores y Programación a Bajo Nivel en Ensamblador MIPS}}\\[12pt]
+{\small \textbf{CPU Apple M4, GPU Intel Xe-HPC (Ponte Vecchio) y Algoritmo de Ordenamiento en MIPS}}
+\end{center}
+
+\vspace{1.5cm}
+
+% --- INTEGRANTES ---
+\begin{center}
+\textbf{Integrantes:}\\[4pt]
+César Olivares\\
+Simón García-Huidobro\\[12pt]
+\textbf{Profesor:}\\[4pt]
+Daniel Calderón R.
+\end{center}
+
+\vfill
+
+% --- FECHA ---
+\begin{center}
+\textbf{Santiago, Chile\\ \today}
+\end{center}
+\end{titlepage}
+
+% =============================================================================
+% ÍNDICE
+% =============================================================================
+\tableofcontents
+\newpage
+
+% =============================================================================
+% SECCIÓN 1: INTRODUCCIÓN
+% =============================================================================
+\section{Introducción y Contexto General}
+
+La evolución de la informática moderna y de los sistemas computacionales ha estado marcada por la necesidad constante de mayor capacidad de cómputo y eficiencia energética. En disciplinas como la Ingeniería Mecatrónica, los sistemas de control en tiempo real, la visión artificial, la simulación física y el procesamiento masivo de datos sensoriales exigen una comprensión profunda de cómo se ejecutan las instrucciones en el hardware subyacente \cite{patterson}.
+
+Para abordar esta necesidad, la presente investigación analiza las tres dimensiones fundamentales de los sistemas de cómputo contemporáneos:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Programación a Bajo Nivel (Ensamblador MIPS)}: Permite comprender el funcionamiento íntimo de la Unidad Central de Procesamiento (CPU), la gestión explícita de registros, la transferencia de datos en la jerarquía de memoria RAM y la manipulación algorítmica paso a paso a nivel de ISA (\textit{Instruction Set Architecture}) \cite{patterson, mars}.
+    \item \textbf{Arquitectura de CPU Moderna (Apple M4)}: Representa el estado del arte en procesadores de baja latencia bajo el paradigma RISC ARMv9-A \cite{armv9}, destacando por su altísimo rendimiento por vatio, ejecución fuera de orden (\textit{Out-of-Order}) y Arquitectura de Memoria Unificada (UMA) \cite{apple_m4}.
+    \item \textbf{Arquitectura de GPU Moderna (Intel Xe-HPC / Data Center GPU Max)}: Representa la cúspide del procesamiento de alto rendimiento (\textit{Throughput}) orientado a cálculos masivamente paralelos bajo la taxonomía SIMD/SIMT \cite{flynn}, haciendo uso de empaquetado tridimensional de \textit{chiplets} y memorias de alto ancho de banda (HBM2e) \cite{intel_pontevecchio}.
+\end{enumerate}
+
+
+\newpage
+\subsection{Objetivos del Informe}
+
+\subsubsection{Objetivo General}
+Desarrollar e implementar un programa modular en Ensamblador MIPS para la manipulación y ordenamiento de datos en memoria principal, complementándolo con un análisis comparativo de arquitecturas de procesamiento modernas (CPU de baja latencia y GPU de alto rendimiento) para evaluar su impacto y uso en la industria moderna.
+
+\subsubsection{Objetivos Específicos}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Implementación a Bajo Nivel en MIPS:} Diseñar, estructurar y depurar en el simulador MARS un algoritmo en ensamblador MIPS que realice el almacenamiento estático, la impresión en consola y el ordenamiento por selección (\textit{Selection Sort}) ascendente y descendente sobre una estructura de $8$ enteros.
+    
+    \item \textbf{Dominio de Gestión de Memoria y Registros:} Aplicar los mecanismos fundamentales de transferencia de datos entre la RAM y la CPU (\texttt{lw}/\texttt{sw}), la indexación de memoria de 32 bits mediante desplazamientos de bits (\texttt{sll}), y la preservación del flujo de control y direcciones de retorno (\texttt{jal}/\texttt{jr \$ra}).
+    
+    \item \textbf{Análisis de Arquitecturas de Procesamiento Modernas:} Investigar los fundamentos arquitectónicos, el modelo de memoria y la clasificación según la Taxonomía de Flynn de la CPU Apple M4 (paradigma MIMD) y la GPU Intel Xe-HPC Ponte Vecchio (paradigma SIMD/SIMT).
+    
+    \item \textbf{Evaluación de Desempeño en Mecatrónica:} Analizar las ventajas, desventajas y aceleración máxima dictada por la Ley de Amdahl para ambas arquitecturas, identificando sus aplicaciones clave en cinemática robótica, control en tiempo real, visión artificial y simulación de gemelos digitales.
+\end{enumerate}
+
+% SECCIÓN 2: PROGRAMACIÓN EN ENSAMBLADOR MIPS
+\newpage
+\section{Programación en Ensamblador MIPS}
+\subsection{Planteamiento del Problema y Especificaciones}
+De acuerdo con las especificaciones del \textbf{Conjunto 1}, el requerimiento de programación en Ensamblador MIPS consiste en desarrollar un programa modular capaz de realizar las siguientes operaciones:
+\begin{enumerate}[leftmargin=*]
+    \item Almacenar en la memoria principal del sistema una lista estática de \textbf{8 números enteros}.
+    \item Imprimir por pantalla la lista de números en su estado inicial (desordenado).
+    \item Implementar un algoritmo de ordenamiento que reorganice los elementos de \textbf{menor a mayor} (orden ascendente) e imprimir la lista resultante.
+    \item Reorganizar la misma lista de \textbf{mayor a menor} (orden descendente) e imprimir el resultado final.
+\end{enumerate}
+
+Para resolver este desafío a bajo nivel se seleccionó el \textbf{Algoritmo de Ordenamiento por Selección (\textit{Selection Sort})}, debido a su comportamiento efectivo para este problema, su óptimo uso de registros MIPS y su claridad al intercambiar elementos directamente sobre direcciones de memoria contiguas \cite{patterson}. Este algoritmo funciona dividiendo conceptualmente la lista en una zona ordenada y otra desordenada: en cada iteración explora el bloque no ordenado, identifica la posición del valor mínimo (o máximo) y realiza un intercambio físico (\textit{swap}) en memoria RAM con el primer elemento de dicho bloque, desplazando la frontera elemento a elemento hasta completar el arreglo. El código fuente completo y comentado del programa en Ensamblador MIPS se presenta en el \textbf{Anexo A}.
+
+\subsection{Fundamentos de la Arquitectura MIPS y Desglose de Instrucciones}
+
+Para comprender la programación a bajo nivel, es necesario definir primero \textbf{qué es MIPS}. MIPS (\textit{Microprocessor without Interlocked Pipelined Stages}) es una Arquitectura del Conjunto de Instrucciones (\textit{Instruction Set Architecture} -- ISA) de tipo \textbf{RISC} (\textit{Reduced Instruction Set Computer}) de 32 bits, ampliamente utilizada en la enseñanza de la arquitectura de computadores debido a su diseño altamente regular, ortogonal y eficiente \cite{patterson}.
+
+A nivel conceptual y de hardware, el procesamiento en MIPS se rige por tres principios fundamentales:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Filosofía de Carga y Almacenamiento (\textit{Load/Store Architecture}):} La CPU MIPS no puede ejecutar operaciones aritméticas ni comparaciones directamente sobre los datos almacenados en la memoria RAM. Para procesar cualquier información, la CPU debe primero trasladar el dato desde la RAM hacia su banco interno de registros mediante la instrucción \texttt{lw} (\textit{Load Word}), operar sobre él en la ALU y, finalmente, reescribir el resultado en la RAM mediante \texttt{sw} (\textit{Store Word}).
+    
+    \item \textbf{Banco de Registros de Propósito General:} La CPU dispone de 32 registros internos de 32 bits cada uno, los cuales actúan como casilleros de almacenamiento ultra-rápido de baja latencia. En nuestro proyecto se utilizaron los registros temporales (\texttt{\$t0}--\texttt{\$t9}) para contadores e índices, registros guardados (\texttt{\$s0}--\texttt{\$s2}) para preservar direcciones base, registros de argumentos (\texttt{\$a0}--\texttt{\$a1}) para pasar parámetros a subrutinas, registros de retorno (\texttt{\$v0}) para llamadas al sistema y el registro especial (\texttt{\$ra}) para preservar direcciones de retorno \cite{patterson, mars}.
+
+    \item \textbf{Estructura Tríada de Instrucción:} Cada línea de código en ensamblador MIPS indica explícitamente a la CPU tres elementos: el \textbf{Comando u Opcode} (acción a ejecutar), el \textbf{Registro Destino} (\texttt{\$r}) donde se depositará el resultado, y los \textbf{Operandos Fuente} (\texttt{\$s}, \texttt{label}, \texttt{val}) que entregan los datos de entrada.
+\end{enumerate}
+
+Por ejemplo, al escribir la instrucción \texttt{la \$a0, array}, el comando \texttt{la} (\textit{Load Address}) indica la acción, \texttt{\$a0} es el registro destino y \texttt{array} es la etiqueta de memoria RAM. De igual forma, en la sintaxis de memoria \texttt{0(\$t0)}, los paréntesis indican el registro base en la RAM y el número previo representa el desplazamiento (\textit{offset}) en bytes.
+
+La Tabla \ref{tab:mips_instructions} detalla la totalidad de las instrucciones MIPS utilizadas en el proyecto, desglosando sus componentes sintácticos y su rol operativo en la solución del problema \cite{patterson, mars}.
+
+% ─── TABLA DIVIDIDA EN DOS PÁGINAS CON LONGTABLE ────────────────
+\small
+\begin{longtable}{@{} L{2.8cm} L{4.5cm} L{8.3cm}}
+\caption{Desglose sintáctico y funcional de las instrucciones MIPS utilizadas \cite{patterson, mars}.} \label{tab:mips_instructions} \\
+
+\toprule
+\textbf{Sintaxis Comando} & \textbf{Desglose de Componentes} & \textbf{Funcionamiento y Rol en el Código} \\
+\midrule
+\endfirsthead
+
+\multicolumn{3}{c}{{\bfseries \tablename\ \thetable{} -- Continuación de la página anterior}} \\[5pt]
+\toprule
+\textbf{Sintaxis Comando} & \textbf{Desglose de Componentes} & \textbf{Funcionamiento y Rol en el Código} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\texttt{la \$r, label} & 
+\textbf{\texttt{la}}: Acción (\textit{Load Address})\newline
+\textbf{\texttt{\$r}}: Registro destino\newline
+\textbf{\texttt{label}}: Etiqueta en RAM & 
+Busca la dirección de memoria donde inicia la etiqueta \texttt{label} y la guarda en el registro \texttt{\$r}. Se usa para inicializar el puntero del \texttt{array} y cargar los mensajes de texto. \\
+\midrule
+\texttt{li \$r, val} & 
+\textbf{\texttt{li}}: Acción (\textit{Load Immediate})\newline
+\textbf{\texttt{\$r}}: Registro destino\newline
+\textbf{\texttt{val}}: Valor numérico directo & 
+Guarda una constante numérica directamente en el registro \texttt{\$r} sin consultar la RAM. Se utiliza para configurar los servicios de pantalla en \texttt{\$v0} y definir el valor inicial de los contadores. \\
+\midrule
+\texttt{lw \$r, off(\$b)} & 
+\textbf{\texttt{lw}}: Acción (\textit{Load Word})\newline
+\textbf{\texttt{\$r}}: Registro destino\newline
+\textbf{\texttt{off(\$b)}}: Desplazamiento + Base & 
+Lee los 4 bytes de un entero almacenado en la RAM (en la dirección del registro base \texttt{\$b} $+$ el \textit{offset}) y copia su valor en \texttt{\$r}. Permite traer los números del arreglo a la CPU para procesarlos. \\
+\midrule
+\texttt{sw \$r, off(\$b)} & 
+\textbf{\texttt{sw}}: Acción (\textit{Store Word})\newline
+\textbf{\texttt{\$r}}: Registro con el dato\newline
+\textbf{\texttt{off(\$b)}}: Desplazamiento + Base & 
+Toma el dato guardado en el registro \texttt{\$r} y lo escribe físicamente en la memoria RAM en la casilla especificada por \texttt{\$b} $+$ \textit{offset}. Se utiliza para realizar el intercambio físico (\textit{swap}) de elementos. \\
+\midrule
+\texttt{sll \$r, \$s, n} & 
+\textbf{\texttt{sll}}: Acción (\textit{Shift Left})\newline
+\textbf{\texttt{\$r}}: Registro destino\newline
+\textbf{\texttt{\$s}}: Registro origen\newline
+\textbf{\texttt{n}}: Posiciones a desplazar & 
+Mueve los bits del registro \texttt{\$s} hacia la izquierda $n$ posiciones (equivale a multiplicar por $2^n$). Al ejecutar \texttt{sll \$t, \$k, 2}, se multiplica el índice por 4 para convertir posiciones lógicas a desplazamientos de bytes en RAM. \\
+\midrule
+\texttt{add \$r, \$s, \$t}\newline \texttt{addi \$r, \$s, val} & 
+\textbf{\texttt{add/addi}}: Acción (Suma)\newline
+\textbf{\texttt{\$r}}: Registro destino\newline
+\textbf{\texttt{\$s}}: Operando 1\newline
+\textbf{\texttt{\$t} / \texttt{val}}: Operando 2 o constante & 
+Suma dos valores numéricos y guarda el resultado en \texttt{\$r}. En el programa se utiliza \texttt{add} para sumar la dirección base del arreglo con el offset del índice, y \texttt{addi} para hacer incrementos en bucles ($i = i + 1$). \\
+\midrule
+\texttt{sub \$r, \$s, \$t} & 
+\textbf{\texttt{sub}}: Acción (Resta)\newline
+\textbf{\texttt{\$r}}: Registro destino\newline
+\textbf{\texttt{\$s}}, \texttt{\$t}: Operandos 1 y 2 & 
+Resta el valor de \texttt{\$t} al registro \texttt{\$s} y almacena el resultado en \texttt{\$r}. Se utilizó para calcular la condición límite del bucle externo ($N - 1 = 8 - 1 = 7$). \\
+\midrule
+\texttt{slt \$r, \$a, \$b} & 
+\textbf{\texttt{slt}}: Acción (\textit{Set Less Than})\newline
+\textbf{\texttt{\$r}}: Registro bandera ($1$ o $0$)\newline
+\textbf{\texttt{\$a}}, \texttt{\$b}: Registros a comparar & 
+Compara dos registros. Si \texttt{\$a} $< \mathtt{\$b}$, coloca un $1$ en el registro destino \texttt{\$r}; de lo contrario, guarda un $0$. Es la herramienta central del programa para decidir qué elemento es menor o mayor. \\
+\midrule
+\texttt{beq \$a, \$b, label}\newline \texttt{bne \$a, \$b, label} & 
+\textbf{\texttt{beq/bne}}: Acción (Salto)\newline
+\textbf{\texttt{\$a}}, \texttt{\$b}: Registros a evaluar\newline
+\textbf{\texttt{label}}: Destino del salto & 
+Compara si los registros \texttt{\$a} y \texttt{\$b} son iguales (\texttt{beq}) o distintos (\texttt{bne}). Si se cumple la condición, interrumpe el flujo normal y salta a la etiqueta especificada (usado para controlar los bucles). \\
+\midrule
+\texttt{jal label} & 
+\textbf{\texttt{jal}}: Acción (\textit{Jump and Link})\newline
+\textbf{\texttt{label}}: Subrutina de destino & 
+Salta hacia la etiqueta de una subrutina y guarda automáticamente la dirección de retorno en el registro \texttt{\$ra}. Se usa desde el \texttt{main} para llamar a las funciones de impresión y ordenamiento. \\
+\midrule
+\texttt{jr \$ra} & 
+\textbf{\texttt{jr}}: Acción (\textit{Jump Register})\newline
+\textbf{\texttt{\$ra}}: Registro de retorno & 
+Toma la dirección guardada dentro del registro \texttt{\$ra} y salta hacia ella. Permite a las subrutinas finalizar su ejecución y retornar al punto exacto del \texttt{main} desde donde fueron invocadas. \\
+\midrule
+\texttt{syscall} & 
+\textbf{\texttt{syscall}}: Interrupción del SO & 
+Genera una llamada al sistema operativo/simulador MARS para ejecutar una tarea de entrada/salida definida previamente en el registro \texttt{\$v0} (como imprimir un número, imprimir texto o salir). \\
+\end{longtable}
+\subsection{Diagramas de Flujo del Programa y Algoritmo}
+
+Para ofrecer una visión integral de la solución computacional desarrollada, la representación del sistema se divide en dos niveles de abstracción: la estructura de control principal del programa y la lógica interna del algoritmo de ordenamiento.
+
+\subsubsection{Flujo de Control Principal (\texttt{main})}
+La Figura \ref{fig:mips_main_flowchart} ilustra la orquestación modular del programa. El bloque \texttt{main} actúa como un controlador de alto nivel que inicializa los datos en la memoria RAM y coordina la ejecución secuencial de las subrutinas creadas mediante llamadas con \texttt{jal}:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{\texttt{print\_array}:} Recorre las posiciones del arreglo en la memoria RAM e imprime sus valores numéricos por consola acompañados de espacios separadores mediante llamadas al sistema (\texttt{syscall}).
+    \item \textbf{\texttt{sort\_ascending}:} Ejecuta el algoritmo de ordenamiento por selección para reorganizar los elementos de menor a mayor directamente sobre las posiciones físicas de la RAM.
+    \item \textbf{\texttt{sort\_descending}:} Toma la lista en memoria y la reordena de mayor a menor invirtiendo el criterio de comparación relacional.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.2cm]
+    \node (start) [startstop] {Inicio (\texttt{main})};
+    \node (p1) [process, below of=start] {Cargar arreglo estático (8 enteros) en RAM};
+    \node (p2) [process, below of=p1] {Llamar \texttt{print\_array} (Lista Original)};
+    \node (p3) [process, below of=p2] {Llamar \texttt{sort\_ascending} (Menor a Mayor)};
+    \node (p4) [process, below of=p3] {Llamar \texttt{print\_array} (Lista Ascendente)};
+    \node (p5) [process, below of=p4] {Llamar \texttt{sort\_descending} (Mayor a Menor)};
+    \node (p6) [process, below of=p5] {Llamar \texttt{print\_array} (Lista Descendente)};
+    \node (end) [startstop, below of=p6] {Fin del Programa (\texttt{syscall 10})};
+
+    \draw [arrow] (start) -- (p1);
+    \draw [arrow] (p1) -- (p2);
+    \draw [arrow] (p2) -- (p3);
+    \draw [arrow] (p3) -- (p4);
+    \draw [arrow] (p4) -- (p5);
+    \draw [arrow] (p5) -- (p6);
+    \draw [arrow] (p6) -- (end);
+\end{tikzpicture}
+\caption{Diagrama de flujo del control principal y llamadas modulares en MIPS.}
+\label{fig:mips_main_flowchart}
+\end{figure}
+
+\subsubsection{Lógica Algorítmica del Ordenamiento por Selección}
+La Figura \ref{fig:mips_algorithm_flowchart} detalla la mecánica interna de la subrutina de ordenamiento (\textit{Selection Sort}). La arquitectura se basa en dos bucles anidados:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Bucle Externo ($i$):} Recorre el arreglo y fija la posición candidata a ordenar desde $i = 0$ hasta $N-2$.
+    \item \textbf{Bucle Interno ($j$):} Explora el resto de la lista desde $j = i+1$ hasta $N-1$ evaluando mediante la instrucción relacional \texttt{slt} si existe un elemento menor (o mayor) que el candidato actual.
+    \item \textbf{Intercambio en RAM (\textit{Swap}):} Una vez concluido el bucle interno, se intercambian físicamente los valores en memoria entre la posición $i$ y la posición del mínimo/máximo encontrado.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\scalebox{0.8}{% <--- AJUSTA ESTE FACTOR (ej: 0.85 = 85%, 0.75 = 75%, etc.)
+\begin{tikzpicture}[
+    node distance=1.2cm and 2.5cm,
+    startstop/.style={rectangle, rounded corners, draw=usachteal, fill=usachteal!15, font=\small\bfseries, align=center, inner sep=6pt},
+    process/.style={rectangle, draw=usachdark, fill=usachdark!5, font=\small, align=center, inner sep=6pt},
+    decision/.style={diamond, aspect=2.2, draw=usachteal, fill=orange!15, font=\small, align=center, inner sep=3pt},
+    arrow/.style={thick,->,>=stealth,color=usachdark}
+]
+    % --- NODOS DEL EJE PRINCIPAL (VERTICAL) ---
+    \node (start) [startstop] {Inicio Subrutina de Ordenamiento};
+    
+    \node (init_i) [process, below=0.7cm of start] {Inicializar contador externo\\$i = 0$};
+    
+    \node (d_outer) [decision, below=0.8cm of init_i] {¿$i < N - 1$?};
+    
+    % Nodo a la IZQUIERDA para retornar a main (Petición)
+    \node (ret) [startstop, left=1.8cm of d_outer] {Retornar a \texttt{main}\\(\texttt{jr \$ra})};
+    
+    \node (init_j) [process, below=0.8cm of d_outer] {Establecer $\mathtt{min\_idx} = i$\\Inicializar $j = i + 1$};
+    
+    \node (d_inner) [decision, below=0.8cm of init_j] {¿$j < N$?};
+    
+    \node (d_cmp) [decision, below=1.0cm of d_inner] {¿$\mathtt{array}[j] < \mathtt{array}[\mathtt{min\_idx}]$?};
+    
+    \node (upd_cand) [process, below=0.9cm of d_cmp] {Actualizar índice mínimo:\\$\mathtt{min\_idx} = j$};
+
+    % --- NODOS LATERALES ---
+    \node (inc_j) [process, left=1.8cm of d_cmp] {Incrementar\\$j = j + 1$};
+    
+    \node (swap) [process, right=1.8cm of d_inner] {Intercambio (\textit{Swap}) en RAM:\\$\mathtt{array}[i] \leftrightarrow \mathtt{array}[\mathtt{min\_idx}]$\\[3pt]Incrementar $i = i + 1$};
+
+    % --- FLECHAS Y CONEXIONES ---
+    \draw [arrow] (start) -- (init_i);
+    \draw [arrow] (init_i) -- (d_outer);
+    
+    % Salida NO a la izquierda hacia Retornar
+    \draw [arrow] (d_outer) -- node[above, font=\small] {No} (ret);
+    \draw [arrow] (d_outer) -- node[right, font=\small] {Sí} (init_j);
+    
+    \draw [arrow] (init_j) -- (d_inner);
+    \draw [arrow] (d_inner) -- node[right, font=\small] {Sí} (d_cmp);
+    \draw [arrow] (d_inner) -- node[above, font=\small] {No} (swap);
+    
+    \draw [arrow] (d_cmp) -- node[right, font=\small] {Sí} (upd_cand);
+    \draw [arrow] (d_cmp) -- node[above, font=\small] {No} (inc_j);
+    
+    % Retorno del bucle interno (j)
+    \draw [arrow] (upd_cand.west) -| (inc_j.south);
+    \draw [arrow] (inc_j.north) |- (d_inner.west);
+    
+    % Retorno del bucle externo (i) despejado a la derecha
+    \draw [arrow] (swap.north) |- (d_outer.east);
+
+\end{tikzpicture}%
+} % <--- CIERRE DEL SCALEBOX
+\caption{Diagrama de flujo algorítmico del Ordenamiento por Selección (\textit{Selection Sort}) y control de bucles anidados.}
+\label{fig:mips_algorithm_flowchart}
+\end{figure}
+
+
+\subsection{Explicación de la Lógica del Algoritmo y Gestión de Memoria}
+
+Para comprender el funcionamiento interno del programa, es fundamental recordar que la CPU no trabaja con nombres de variables abstractas ni con índices conceptuales como en lenguajes de alto nivel (Python o C), sino con \textbf{direcciones físicas de memoria RAM en formato de bytes} y \textbf{registros de trabajo internos} \cite{patterson}. A continuación, se detallan los tres pilares de gestión de memoria y lógica algorítmica aplicados en el código:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Aritmética de Punteros e Indexación de 32 Bits (\texttt{sll} $+$ \texttt{add}):}
+    En MIPS, la memoria RAM está organizada byte a byte, y cada entero declarado bajo la directiva \texttt{.word} ocupa exactamente 4 bytes (32 bits). Por esta razón, acceder al elemento $k$-ésimo de un arreglo no consiste simplemente en sumar $k$ a la dirección inicial, sino en calcular su desplazamiento físico en bytes:
+    $$\text{Dirección Física}(k) = B + (k \times 4)$$
+    donde $B$ representa la dirección de memoria base del arreglo (por ejemplo, $\mathtt{0x10010000}$). Para realizar la multiplicación $k \times 4$ a la máxima velocidad posible en hardware, el programa ejecuta un desplazamiento lógico a la izquierda de 2 bits mediante la instrucción \texttt{sll \$t2, \$k, 2}, sumando posteriormente este resultado a la dirección base para obtener el puntero exacto en RAM \cite{patterson}.
+
+    \item \textbf{Ciclo de Lectura, Modificación y Escritura para el Intercambio (\textit{Swap}):}
+    Dado que la CPU no puede intercambiar valores directamente entre dos celdas de la memoria RAM, el proceso de \textit{swap} debe realizarse obligatoriamente utilizando registros temporales como puente:
+    \begin{itemize}
+        \item \textbf{Carga en Registros (\texttt{lw}):} Se leen los valores almacenados en $\mathtt{array}[i]$ y $\mathtt{array}[\mathtt{cand\_idx}]$ desde la RAM y se depositan temporalmente en los registros \texttt{\$t3} y \texttt{\$t6}.
+        \item \textbf{Escritura Cruzada (\texttt{sw}):} Se invierten los registros en las instrucciones de almacenamiento: el valor contenido en \texttt{\$t6} (el mínimo o máximo encontrado) se escribe en la dirección de $\mathtt{array}[i]$, y el valor original de \texttt{\$t3} se guarda en la casilla de $\mathtt{array}[\mathtt{cand\_idx}]$ \cite{patterson}.
+    \end{itemize}
+
+    \item \textbf{Polaridad Comparativa y Selección de Criterio (\texttt{slt}):}
+    La diferencia funcional entre la rutina de ordenamiento ascendente (\texttt{sort\_ascending}) y descendente (\texttt{sort\_descending}) recae exclusivamente en la inversión de los operandos dentro de la instrucción relacional \texttt{slt} (\textit{Set on Less Than}):
+    \begin{itemize}
+        \item \textbf{Orden Ascendente (Menor a Mayor):} Ejecuta \texttt{slt \$t7, \$t3, \$t6}, evaluando si $\mathtt{array}[j] < \mathtt{array}[\mathtt{min\_idx}]$. Si se cumple, el registro \texttt{\$t7} toma el valor $1$, indicando que se ha encontrado un nuevo mínimo local.
+        \item \textbf{Orden Descendente (Mayor a Menor):} Invierte los operandos ejecutando \texttt{slt \$t7, \$t6, \$t3}, lo que equivale a evaluar si $\mathtt{array}[\mathtt{max\_idx}] < \mathtt{array}[j]$. Si la condición es verdadera (\texttt{\$t7} $= 1$), se actualiza el índice candidato hacia el nuevo máximo local.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Discusión de Dificultades de Programación y Análisis Crítico}
+
+Una vez implementado el código en el simulador MARS, la fase de prueba confirmó que las operaciones críticas identificadas previamente se tradujeron en desafíos prácticos de depuración. A continuación se analizan los problemas reales surgidos y las estrategias aplicadas para resolverlos:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Confusión entre Direcciones de Memoria y Valores de Registros}: En las primeras iteraciones, un error recurrente fue intentar comparar directamente el registro que contenía la dirección base del arreglo (\texttt{\$a0}), en lugar del valor numérico almacenado en la RAM. Al inspeccionar la memoria con el depurador de MARS, se comprendió la necesidad de separar la operación en dos pasos: primero calcular la dirección de memoria con \texttt{la} / \texttt{add} y luego extraer el dato real hacia un registro temporal mediante \texttt{lw} \cite{mars}.
+
+    \item \textbf{Errores de Alineación por Salto de Índices (\texttt{sll})}: Al intentar avanzar en el arreglo incrementando el puntero de 1 en 1 ($i + 1$), el simulador generó lecturas desalineadas. La solución consistió en aplicar de forma sistemática la multiplicación del índice por 4 mediante un desplazamiento lógico a la izquierda (\texttt{sll \$t2, \$t1, 2}) antes de sumarlo a la dirección base, garantizando accesos exactos a los bordes de 32 bits \cite{mars}.
+
+    \item \textbf{Inversión de Operandos en Saltos Condicionales con \texttt{slt}}: La instrucción \texttt{slt} (\textit{Set on Less Than}) generó confusiones al adaptar la lógica para ordenar de mayor a menor. Debido a que MIPS no posee una instrucción directa para "mayor que", fue necesario analizar con detenimiento el orden de los operandos en \texttt{slt \$t7, \$a, \$b} y monitorear el valor de retorno en el registro bandera ($1$ o $0$) para coordinar los saltos con \texttt{beq} \cite{mars}.
+
+    \item \textbf{Sobrescritura de Registros en Llamadas al Sistema (\textit{Syscalls})}: Durante la implementación de la subrutina \texttt{print\_array}, la consola no imprimía los datos esperados. El análisis de registros reveló que los valores de control se estaban sobrescribiendo antes de invocar la interrupción. Se corrigió asegurando que el código de servicio correcto estuviera en \texttt{\$v0} ($1$ para enteros, $4$ para cadenas) y el argumento en \texttt{\$a0} inmediatamente antes de cada instrucción \texttt{syscall} \cite{mars}.
+\end{enumerate}
+
+En síntesis, la resolución de estos problemas prácticos permitió validar las precauciones de diseño iniciales. El verdadero valor técnico de la experiencia residió en verificar directamente cómo la CPU interactúa con la memoria RAM a nivel de bytes, la importancia de aislar los registros de trabajo y la disciplina requerida para traducir algoritmos a instrucciones puras de hardware.
+% SECCIÓN 3: INVESTIGACIÓN CPU MODERNA (APPLE M4)
+\section{Investigación: Arquitectura de CPU Moderna --- Apple M4}
+
+\subsection{Fundamentos Teóricos de la Arquitectura}
+El microprocesador \textbf{Apple M4} representa la cuarta generación de \textit{System-on-Chip} (SoC) desarrollados por Apple para entornos personales y profesionales \cite{apple_m4}. Construido sobre la arquitectura RISC ARMv9-A \cite{armv9} y fabricado mediante el nodo N3E de segunda generación de TSMC (N3E), el M4 es un referente en la integración de procesadores de baja latencia con aceleración especializada \cite{apple_m4}. Sus especificaciones arquitectónicas importantes se resumen en la Tabla \ref{tab:specs_m4}.
+
+\begin{table}[H]
+\centering
+\caption{Ficha técnica arquitectónica del microprocesador Apple M4 \cite{apple_m4}.}
+\label{tab:specs_m4}
+\small
+\begin{tabular}{L{5cm} L{9cm}}
+\toprule
+\textbf{Parámetro Arquitectónico} & \textbf{Especificación Técnica} \\
+\midrule
+Arquitectura RISC & ARMv9-A (64 bits) con extensión SME2 \cite{armv9} \\
+  & 3 nm N3E (TSMC) con 28 mil millones de transistores \cite{apple_m4} \\
+Configuración de Núcleos & 10 núcleos (4 P-Cores Donan + 6 E-Cores Sawtooth) \cite{apple_m4} \\
+Ancho de Decodificación & 10 vías de decodificación por P-Core \cite{apple_m4} \\
+Jerarquía de Caché L1 & P-Core: 192 KB Instr + 128 KB Datos; E-Core: 128 KB Instr + 64 KB Datos \cite{apple_m4} \\
+Memoria Principal (UMA) & LPDDR5X a 7500 MT/s, Canal 128 bits, Ancho de Banda 120 GB/s \cite{apple_m4} \\
+Aceleradores Integrados & Neural Engine (16 núcleos, 38 TOPS) + Motor Ray Tracing Hardware \cite{apple_m4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Clasificación Arquitectónica y Taxonomía de Flynn}
+Para comprender el funcionamiento del procesador Apple M4 , es necesario recurrir a la \textbf{Taxonomía de Flynn} \cite{flynn}. Esta clasificación organiza los computadores según el número de flujos de instrucciones  y flujos de datos que el hardware puede manejar en paralelo:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{SISD (\textit{Single Instruction, Single Data})}: Una sola instrucción procesa un solo dato a la vez. Es el modelo secuencial tradicional, típico de microcontroladores básicos como un Arduino ejecutando algún lazo de control simple \cite{flynn}.
+    \item \textbf{SIMD (\textit{Single Instruction, Multiple Data})}: Una misma instrucción se aplica simultáneamente a múltiples datos distintos. Es característico del procesamiento vectorial y de las tarjetas gráficas (GPUs) \cite{flynn}.
+    \item \textbf{MISD (\textit{Multiple Instruction, Single Data})}: Múltiples instrucciones procesan un mismo dato. Se utiliza en sistemas redundantes de alta seguridad (como controladores de vuelo) donde varios procesadores verifican el mismo dato de un sensor \cite{flynn}.
+    \item \textbf{MIMD (\textit{Multiple Instruction, Multiple Data})}: Múltiples procesadores independientes ejecutan diferentes instrucciones sobre distintos conjuntos de datos al mismo tiempo \cite{flynn}.
+\end{itemize}
+
+El procesador \textbf{Apple M4 se clasifica en el modelo MIMD} \cite{flynn, apple_m4}. Esto se debe a que integra 10 núcleos físicos e independientes:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Núcleos de Alto Rendimiento (\textit{P-Cores} - arquitectura Donan)}: Están optimizados para la ejecución secuencial de baja latencia mediante un pipeline de 10 vías de decodificación y reorganización fuera de orden \cite{apple_m4}.
+    \item \textbf{Núcleos de Alta Eficiencia (\textit{E-Cores} - arquitectura Sawtooth)}: Diseñados para gestionar tareas en segundo plano con un rendimiento muy alto \cite{apple_m4}.
+\end{itemize}
+Cada núcleo posee su propia ALU, decodificador y registros locales, lo que les permite captar, decodificar y ejecutar tareas completamente distintas en paralelo \cite{apple_m4}.
+
+\subsubsection{Organización de Memoria: Desde von Neumann a la Memoria Unificada (UMA)}
+En la arquitectura clásica de \textbf{von Neumann}, las instrucciones y los datos comparten el mismo espacio de memoria RAM y los mismos cables físicos de comunicación \cite{patterson}. Esto genera el \textbf{Cuello de Botella de von Neumann}, donde el procesador pierde tiempo esperando a que datos e instrucciones se turnen para transitar por el cableado \cite{patterson}.
+
+Para arreglar esto, surgieron la \textbf{Arquitectura Harvard} (que separa físicamente las memorias de datos e instrucciones) y la \textbf{Arquitectura Harvard Modificada} \cite{patterson}. El procesador \textbf{Apple M4 implementa una Arquitectura Harvard Modificada}:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Jerarquía L1 Dedicada}: Cada núcleo P cuenta con 192 KB de caché L1 para instrucciones y 128 KB de caché L1 para datos con cables físicos totalmente separados \cite{apple_m4}. Esto garantiza que la CPU lea instrucciones y opere variables simultáneamente.
+    \item \textbf{Arquitectura de Memoria Unificada (UMA)}: A diferencia de los computadores tradicionales donde transferir datos a la tarjeta gráfica requiere copiar la información a través de una linea lenta el M4 integra la memoria RAM dentro del mismo empaque del SoC \cite{apple_m4}. De este modo, la CPU, la GPU y el motor de IA acceden al mismo espacio de direccionamiento físico sin necesidad de duplicar ni copiar memoria \cite{apple_m4}.
+\end{enumerate}
+
+\subsubsection{Concurrencia, Paralelismo Real y la Ley de Amdahl}
+En microprocesadores modernos es fundamental distinguir entre \textbf{Concurrencia} y \textbf{Paralelismo Real} \cite{patterson}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Concurrencia (Multitarea)}: Es la capacidad de gestionar múltiples tareas intercalando rápidamente su ejecución en un mismo procesador, dando la ilusión de simultaneidad \cite{patterson}.
+    \item \textbf{Paralelismo Real (Multinúcleo)}: Ocurre cuando existen múltiples núcleos físicos ejecutando tareas al mismo tiempo realmente \cite{patterson}.
+\end{itemize}
+
+El Apple M4 evita el uso de multitareas para evitar la contención por recursos internos; en su lugar, confía en sus 10 núcleos físicos paralelos \cite{apple_m4}. Sin embargo, el aceleramiento máximo del sistema depende de la \textbf{Ley de Amdahl} \cite{amdahl}:
+$$S_{latency}(f, n) = \frac{1}{(1 - f) + \frac{f}{n}}$$
+donde $f$ es la fracción paralelizable del programa y $n$ es el número de núcleos \cite{amdahl}. Si un algoritmo  tiene un $40\%$ de código estrictamente secuencial ($f = 0.60$), la aceleración máxima jamás superará:
+$$\lim_{n \to \infty} S_{latency} = \frac{1}{1 - 0.60} = 2.5\times$$
+Espor esto que Apple prioriza un altísimo rendimiento por nucleo, asegurando que la fracción secuencial $(1-f)$ se resuelva a la máxima velocidad posible \cite{apple_m4, amdahl}.
+
+\subsection{Características Técnicas: Ventajas y Desventajas}
+
+\subsubsection{Ventajas}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Instrucciones Per Clock (IPC) Líder en la Industria}: El rediseño a 10 vías de decodificación permite ejecutar más instrucciones por ciclo de reloj que procesadores portátiles competidores \cite{apple_m4}.
+    \item \textbf{Eficiencia Energética (Rendimiento por Vatio)}: El N3E y la distribución entre procesadores (CPU a GPU) logran alto rendimiento reduciendo el consumo eléctrico y la disipación térmica \cite{apple_m4}.
+    \item \textbf{Cero Copia en Memoria Unificada (UMA)}: Al compartir la memoria RAM entre la CPU, GPU y el motor de ia, se elimina la copia de datos a través de cables externos \cite{apple_m4}.
+\end{itemize}
+
+\subsubsection{Desventajas}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Incapacidad de Expansión de Memoria RAM}: La memoria está soldada en el encapsulado del SoC, impidiendo ampliaciones posteriores \cite{apple_m4}.
+    \item \textbf{Sobrecarga por Capas de Traducción}: Al basarse en la arquitectura RISC ARMv9-A \cite{armv9}, la ejecución de software industrial heredado para 64 bits requiere traducción en el momento, agregando lentitud en el sistema \cite{apple_m4}.
+    \item \textbf{Ecosistema Propietario}: La integración cerrada dificulta su incorporación directa en sistemas estandarizados.
+\end{itemize}
+
+\subsection{Modelo de Referencia y Análisis de Benchmarks}
+Para evaluar empíricamente la arquitectura, se analiza el modelo de referencia \textbf{Apple M4 (10 núcleos CPU)} \cite{apple_m4}.
+
+\begin{table}[H]
+\centering
+\caption{Resultados sintéticos de benchmarks para el procesador Apple M4 \cite{apple_m4}.}
+\label{tab:benchmarks_m4}
+\small
+\begin{tabular}{L{4.5cm} C{3.5cm} C{4.5cm}}
+\toprule
+\textbf{Prueba Sintética} & \textbf{Puntuación M4} & \textbf{Métrica Evaluada} \\
+\midrule
+Geekbench 6 (Single-Core) & $\sim 3,850$ puntos & Latencia secuencial / IPC \\
+Geekbench 6 (Multi-Core) & $\sim 14,500$ puntos & Rendimiento MIMD multinúcleo \\
+Cinebench 2024 (Single-Core) & $\sim 178$ puntos & Rendimiento monohilo computacional \\
+Cinebench 2024 (Multi-Core) & $\sim 1,070$ puntos & Escalamiento paralelo multinúcleo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Análisis de Resultados}: La alta puntuación en monohilo ($\sim 3,850$ en Geekbench 6) demuestra la capacidad del M4 para acelerar la fracción secuencial de los programas, reduciendo el límite de la Ley de Amdahl \cite{amdahl}. En mecatrónica, esto asegura que las interrupciones en tiempo real se ejecuten con latencias mínimas.
+
+\subsection{Oportunidades y Aplicaciones en Ingeniería Civil en Mecatrónica}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Cinemática Directa e Inversa en Tiempo Real}: El alto IPC monohilo permite resolver las ecuaciones de cinemática inversa y transformaciones homogéneas de Denavit-Hartenberg (DH) para brazos robóticos con latencias inferiores a un milisegundo \cite{patterson, apple_m4}.
+    \item \textbf{Robótica Autónoma y Visión en el Borde (\textit{Edge AI})}: La arquitectura ARMv9 junto al Neural Engine de 16 núcleos (38 TOPS) y extensiones vectoriales SME2 permite ejecutar modelos de visión artificial (como YOLO) directamente en plataformas robóticas móviles sin depender de servidores en la nube \cite{armv9, apple_m4}.
+\end{enumerate}
+
+
+% SECCIÓN 4: INVESTIGACIÓN GPU MODERNA (INTEL XE-HPC / PONTE VECCHIO)
+\section{Investigación: Arquitectura de GPU Moderna --- Intel Xe-HPC (Ponte Vecchio)}
+
+\subsection{Fundamentos Teóricos de la Arquitectura}
+A diferencia de las CPUs optimizadas para resolver tareas secuenciales complejas con bajo retraso, las GPU contemporáneas orientadas a centros de datos como la ''Arquitectura Ponte Vecchio'' están diseñadas para maximizar el rendimiento sostenido en cálculos  paralelos \cite{intel_pontevecchio}. Sus especificaciones arquitectónicas se detallan en la Tabla \ref{tab:specs_gpu}.
+
+\begin{table}[H]
+\centering
+\caption{Ficha técnica arquitectónica de la GPU Intel Data Center GPU Max 1550 (Ponte Vecchio) \cite{intel_pontevecchio}.}
+\label{tab:specs_gpu}
+\small
+\begin{tabular}{L{5cm} L{9cm}}
+\toprule
+\textbf{Parámetro Arquitectónico} & \textbf{Especificación Técnica} \\
+\midrule
+Arquitectura Computacional & Intel Xe-HPC (SIMD masivamente paralelo) \cite{intel_pontevecchio} \\
+Empaquetado y Tiles & Foveros 3D + EMIB (47 tiles activos, $>100$ mil millones transistores) \cite{intel_pontevecchio} \\
+Configuración Xe-Cores & 128 Xe-Cores (1024 Vector Engines + 1024 XMX Matrix Engines) \cite{intel_pontevecchio} \\
+Memoria Apilada (HBM2e) & 128 GB HBM2e con ancho de banda $>3.2\text{ TB/s}$ \cite{intel_pontevecchio} \\
+Caché L2 Global & 408 MB de caché L2 masiva compartida por Compute Tiles \cite{intel_pontevecchio} \\
+Rendimiento FP64 / FP32 & 52 TFLOPS FP64 / 104 TFLOPS FP32 / 832 TFLOPS XMX Matrix \cite{intel_pontevecchio} \\
+Consumo Térmico (TDP) & 600W por módulo OAM (refrigeración líquida industrial) \cite{intel_pontevecchio} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Taxonomía de Flynn en la GPU: Paradigma SIMD y Ejecución SIMT}
+Bajo la \textbf{Taxonomía de Flynn} \cite{flynn}, la GPU se encuadra en el modelo \textbf{SIMD (\textit{Single Instruction, Multiple Data})} y su modelo de ejecución \textbf{SIMT (\textit{Single Instruction, Multiple Threads})} \cite{intel_pontevecchio}. En este paradigma, la GPU no ejecuta instrucciones diferentes por cada núcleo, sino que una única instrucción dada por la unidad de control, se aplica a la vez sobre múltiples datos agrupados en hilos paralelos \cite{flynn, intel_pontevecchio}.
+
+\subsubsection{Jerarquía de Ejecución y Organización Estructural}
+Para realizar miles de operaciones simultáneas, la GPU organiza sus recursos computacionales bajo una estricta jerarquía \cite{intel_pontevecchio}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Hilo: La unidad mínima funcional de ejecución} \cite{intel_pontevecchio}.
+    \item \textbf{Sub-grupo}: Agrupación de 16 o 32 hilos que se ejecutan en estricta sincronía sobre los cauces vectoriales del hardware \cite{intel_pontevecchio}.
+    \item \textbf{Núcleo Xe (\textit{Xe-Core})}: La unidad fundamental de hardware que integra 8 Motores Vectoriales (512 bits) y 8 Motores Matriciales  (1024 bits), junto a memoria compartida local (\textit{SLM}) \cite{intel_pontevecchio}.
+    \item \textbf{Tile de Cómputo}: Arquitectura de división del procesador, cada \textit{tile} contiene su propio núcleo de CPU, memoria caché y un conmutador de red para comunicarse con el resto del procesador.   \cite{intel_pontevecchio}.
+    \item \textbf{Red de Bloques}: La estructura lógica global que hace la ejecución del programa completo sobre los \textit{tiles} del chip \cite{intel_pontevecchio}.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.2cm]
+    \node (grid) [startstop, minimum width=8cm] {Grid Global de la Aplicación};
+    \node (tile) [process, below of=grid, minimum width=7cm] {Tile de Cómputo};
+    \node (xecore) [process, below of=tile, minimum width=6cm] {Xe-Cores};
+    \node (subgroup) [process, below of=xecore, minimum width=5cm] {Sub-grupos};
+    \node (thread) [process, below of=subgroup, minimum width=4cm, fill=usachteal!20] {Hilos Individuales};
+
+    \draw [arrow] (grid) -- (tile);
+    \draw [arrow] (tile) -- (xecore);
+    \draw [arrow] (xecore) -- (subgroup);
+    \draw [arrow] (subgroup) -- (thread);
+\end{tikzpicture}
+\caption{Jerarquía estructural de ejecución en la arquitectura Intel Xe-HPC \cite{intel_pontevecchio}.}
+\label{fig:gpu_hierarchy}
+\end{figure}
+
+\subsubsection{Jerarquía de Memoria y Empaquetado Tridimensional}
+Ponte Vecchio integra más de \textbf{100 mil millones de transistores} repartidos en \textbf{47 \textit{tiles} activos} interconectados mediante tecnologías de empaquetado \textbf{EMIB (Embedded Multi-die Interconnect Bridge)} y \textbf{Foveros 3D} \cite{intel_pontevecchio}. Para evitar la inanición de datos, la GPU utiliza memoria \textbf{HBM2e (High Bandwidth Memory)} apilada en el empaque, alcanzando un ancho de banda masivo superior a \textbf{3.2 Terabytes por segundo (TB/s)} \cite{intel_pontevecchio}.
+
+\subsection{Características Técnicas: Ventajas y Desventajas}
+
+\subsubsection{Ventajas}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Alto Rendimiento}: Capacidad para realizar trillones de operaciones matemáticas por segundo \cite{intel_pontevecchio}.
+    \item \textbf{Aceleración Matricial Dedicada}: Ejecutan multiplicaciones de matrices $8 \times 8 \times 8$ en un solo ciclo de reloj, acelerando la Inteligencia Artificial y la física computacional \cite{intel_pontevecchio}.
+    \item \textbf{Ancho de Banda Extremo}: Supera los 3.2 TB/s de tasa de transferencia, manteniendo los núcleos SIMD constantemente alimentados \cite{intel_pontevecchio}.
+\end{itemize}
+
+\subsubsection{Desventajas}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Penalización Severa por Divergencia Lógica}: Si los hilos dentro de un mismo sub-grupo  toman distintos \texttt{''if-else''},  se desactivan hilos y se pierden ciclos de reloj \cite{intel_pontevecchio}.
+    \item \textbf{Elevado Consumo Térmico}: Requiere hasta 600W de potencia por módulo, exigiendo refrigeración líquida industrial \cite{intel_pontevecchio}.
+    \item \textbf{Latencia por cables}: La transferencia de datos desde la RAM hacia la memoria HBM2e agrega una latencia considerable que invalida el uso de la GPU para operaciones pequeñas \cite{intel_pontevecchio}.
+\end{itemize}
+
+\subsection{Modelo de Referencia, Benchmarks y Perspectiva de Cómputo}
+Se evalúa el modelo \textbf{Intel Data Center GPU Max 1550 (Ponte Vecchio)} \cite{intel_pontevecchio}.
+
+\begin{table}[H]
+\centering
+\caption{Métricas clave de rendimiento para Intel Data Center GPU Max 1550 \cite{intel_pontevecchio}.}
+\label{tab:benchmarks_gpu}
+\small
+\begin{tabular}{L{5cm} C{4cm} L{4.5cm}}
+\toprule
+\textbf{Métrica de Cómputo} & \textbf{Valor Nominal / Medido} & \textbf{Impacto Operativo} \\
+\midrule
+Rendimiento FP64 (Doble Precisión) & $\sim 52\text{ TFLOPS}$ & Simulación física de alta fidelidad \\
+Rendimiento FP32 (Precisión Simple) & $\sim 104\text{ TFLOPS}$ & Gráficos y procesamiento vectorial \\
+Rendimiento XMX (BF16/INT8) & $> 832\text{ TFLOPS}$ & Inferencia y entrenamiento de IA \\
+Ancho de Banda HBM2e & $> 3.2\text{ TB/s}$ & Alimentación masiva de datos \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Comprensión Intuitiva de FLOPS y TeraFLOPS}
+Para comprender el impacto real de las cifras de la Tabla \ref{tab:benchmarks_gpu}:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{¿Qué es un FLOPS?}: Un FLOPS u operaciones de Punto Flotante por Segundo. Mide cuántas operaciones matemáticas con números decimales puede realizar el hardware en un segundo \cite{patterson}.
+    \item \textbf{¿Qué significa 1 TeraFLOPS (TFLOPS)?}: Equivale a \textbf{1 Trillón de operaciones matemáticas por segundo} ($10^{12}$).
+    \item \textbf{Perspectiva de Rendimiento}: Mientras que una CPU de laptop alcanza unos cientos de GigaFLOPS, alcanzar \textbf{52 TeraFLOPS} significa que la GPU resuelve 52 trillones de ecuaciones simultáneamente en cada segundo. En ingeniería, esta capacidad es indispensable para resolver en tiempo real simulaciones de dinámica de fluidos (CFD) o análisis de elementos finitos (FEA).
+\end{itemize}
+
+
+\subsection{Oportunidades en Mecatrónica y Ecosistema de Software en Python}
+Las aplicaciones de la GPU en ingeniería se potencian en Python mediante bibliotecas y frameworks que pueden abstraer la complejidad del hardware \cite{intel_pontevecchio}. La Tabla \ref{tab:python_gpu} resume el ecosistema de herramientas de desarrollo en Python para cómputo masivamente paralelo.
+
+\begin{table}[H]
+\centering
+\caption{Frameworks y bibliotecas de Python para cómputo acelerado por GPU \cite{intel_pontevecchio}.}
+\label{tab:python_gpu}
+\small
+\begin{tabular}{L{3cm} L{3.5cm} C{2.2cm} L{5cm}}
+\toprule
+\textbf{Biblioteca} & \textbf{Uso Principal} & \textbf{Abstracción} & \textbf{Comentario y Aplicación Mecatrónica} \\
+\midrule
+\texttt{Numba} & Aceleración JIT en CPU/GPU & Alto & Muy fácil de usar mediante el decorador \texttt{@cuda.jit}. Ideal para algoritmos a medida. \\
+\midrule
+\texttt{CuPy} & Arreglos tipo NumPy en GPU & Alto & Compatible con  NumPy. Reemplazo directo para operaciones matriciales. \\
+\midrule
+\texttt{PyCUDA} & Control directo de CUDA & Bajo & Permite escribir \textit{kernels} C/C++. Control total pero mayor complejidad. \\
+\midrule
+\texttt{TensorFlow / PyTorch} & Aprendizaje Automático y IA & Alto & Aprovechan motores matriciales en GPU para entrenamiento e inferencia en visión artificial. \\
+\midrule
+\texttt{RAPIDS (cuDF, cuML)} & DataFrames y ML masivo & Alto & Acelera estructuras tipo pandas en GPU para telemetría de sensores masivos. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Gemelos Digitales de Alta Fidelidad}: Simulación física en tiempo real de turbinas eólicas mediante solucionadores matriciales paralelos acelerados por GPU.
+    \item \textbf{Procesamiento Concurrente de Instrumentación Masiva}: Filtrado y procesamiento espectral de miles de señales de sensores en cadenas de frío usando herramientas para GPU y  Python \cite{intel_pontevecchio}.
+    \item \textbf{Visión Artificial e Inteligencia Artificial Industrial}: Entrenamiento e inferencia acelerada de modelos de deep learning en robótica, aprovechando los motores matriciales de la GPU \cite{intel_pontevecchio}.
+\end{enumerate}
+
+
+% SECCIÓN 5: ANÁLISIS COMPARATIVO CPU VS GPU
+\section{Análisis Comparativo: CPU (Apple M4) vs. GPU (Intel Xe-HPC)}
+
+Para brindar una síntesis arquitectónica clara basada en los contenidos teóricos de la asignatura, la Tabla \ref{tab:cpu_vs_gpu} compara los paradigmas de ambos procesadores \cite{apple_m4, intel_pontevecchio}.
+
+\begin{table}[H]
+\centering
+\caption{Matriz comparativa entre la CPU Apple M4 y la GPU Intel Xe-HPC \cite{apple_m4, intel_pontevecchio}.}
+\label{tab:cpu_vs_gpu}
+\small
+\begin{tabular}{L{3.8cm} L{4.8cm} L{4.8cm}}
+\toprule
+\textbf{Criterio Arquitectónico} & \textbf{CPU: Apple M4} & \textbf{GPU: Intel Xe-HPC} \\
+\midrule
+\textbf{Taxonomía de Flynn} & MIMD (\textit{Multiple Instruction, Multiple Data}) \cite{flynn} & SIMD / SIMT (\textit{Single Instruction, Multiple Data}) \cite{flynn} \\
+\midrule
+\textbf{Filosofía de Diseño} & Baja Latencia (\textit{Low-Latency Processor}) \cite{apple_m4} & Alto Rendimiento (\textit{High Throughput Processor}) \cite{intel_pontevecchio} \\
+\midrule
+\textbf{Modelo de Memoria} & Arquitectura Harvard Modificada L1 + Memoria Unificada (UMA) \cite{apple_m4} & Memoria HBM2e Apilada Tridimensionalmente (Foveros) \cite{intel_pontevecchio} \\
+\midrule
+\textbf{Sensibilidad a Ramas} & Alta eficiencia mediante ejecución Fuera de Orden \cite{apple_m4} & Alta penalización por divergencia en sub-grupos \cite{intel_pontevecchio} \\
+\midrule
+\textbf{Aplicación Mecatrónica} & Control secuencial, cinemática robótica y toma de decisiones & Simulación de gemelos digitales, CFD/FEA y aprendizaje profundo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% SECCIÓN 6: CONCLUSIONES
+% =============================================================================
+% SECCIÓN 6: CONCLUSIONES
+% =============================================================================
+\newpage
+\section{Conclusiones}
+
+A partir del desarrollo del algoritmo en Ensamblador MIPS y el análisis comparativo de las arquitecturas de procesamiento contemporáneas, se extraen las siguientes conclusiones fundamentales:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Comprensión del Hardware mediante Programación a Bajo Nivel:} La implementación en \textbf{Ensamblador MIPS} demostró ser una herramienta pedagógica insustituible para comprender cómo el software interactúa directamente con la memoria RAM. La resolución práctica de aspectos como la aritmética de punteros en palabras de 32 bits, el uso de registros temporales para el intercambio (\textit{swap}) y la preservación del registro de retorno (\texttt{\$ra}) permitió valorar el costo real de cómputo y gestión de memoria que los lenguajes de alto nivel suelen ocultar \cite{patterson, mars}.
+
+    \item \textbf{Procesamiento de Baja Latencia en CPUs (Apple M4):} Las CPUs avanzadas optimizadas para MIMD son indispensables para resolver la fracción estrictamente secuencial de los programas, cuya aceleración máxima está limitada por la Ley de Amdahl \cite{amdahl}. Gracias a su elevado IPC y a la Memoria Unificada (UMA), procesadores como el \textbf{Apple M4} se establecen como la plataforma ideal para sistemas de control determinista en tiempo real y cinemática robótica de baja latencia \cite{apple_m4}.
+
+    \item \textbf{Cómputo Masivo y Rendimiento en GPUs (Intel Xe-HPC):} En tareas masivamente paralelizables donde prima el \textit{throughput} sobre la latencia, el paradigma SIMD/SIMT de las GPUs resulta insustituible \cite{flynn}. La capacidad de la arquitectura \textbf{Intel Xe-HPC (Ponte Vecchio)} para sostener anchos de banda superiores a $3.2\text{ TB/s}$ y procesar decenas de TFLOPS demuestra que este hardware es el pilar indispensable para la simulación de gemelos digitales, dinámica de fluidos (CFD) y el entrenamiento de modelos de visión artificial e inteligencia artificial en robótica \cite{intel_pontevecchio}.
+\end{enumerate}
+
+En síntesis, la selección entre una CPU de baja latencia o una GPU de alto rendimiento depende críticamente de la naturaleza del problema (secuencial o masivamente paralelo), mientras que el dominio del ensamblador a bajo nivel otorga las bases para optimizar los recursos computacionales desde la raíz en cualquier plataforma de ingeniería.
+
+\newpage
+\appendix
+
+% =============================================================================
+% REFERENCIAS BIBLIOGRÁFICAS
+% =============================================================================
+\begin{thebibliography}{99}
+
+\bibitem{patterson}
+Patterson, D. A., \& Hennessy, J. L. (2020). \textit{Computer Organization and Design MIPS Edition: The Hardware/Software Interface}. Morgan Kaufmann.
+
+\bibitem{apple_m4}
+Apple Inc. (2024). \textit{Apple M4 Chip Architecture and Scalable Matrix Extensions Whitepaper}. Apple Developer Documentation.
+
+\bibitem{intel_pontevecchio}
+Intel Corporation. (2023). \textit{Intel Data Center GPU Max Series (Ponte Vecchio) Architecture Overview}. Intel Technical Documentation.
+
+\bibitem{flynn}
+Flynn, M. J. (1972). \textit{Some Computer Organizations and Their Effectiveness}. IEEE Transactions on Computers, C-21(9), 948-960.
+
+\bibitem{amdahl}
+Amdahl, G. M. (1967). \textit{Validity of the single processor approach to achieving large scale computing capabilities}. In Proceedings of the AFIPS Spring Joint Computer Conference, 483-485.
+
+\bibitem{armv9}
+ARM Ltd. (2023). \textit{ARMv9-A Architecture Reference Manual}. ARM Technical Documentation.
+
+\bibitem{mars}
+Vollmar, K., \& Sanderson, P. (2006). \textit{MARS: An Educational Simulator for MIPS Assembly Language Programming}. ACM SIGCSE Bulletin, 38(1), 239-243.
+
+\end{thebibliography}
+
+% =============================================================================
+% ANEXOS
+% =============================================================================
+\newpage
+\appendix
+\section{Anexo A: Código Fuente Completo en MIPS}
+\label{sec:anexo_mips}
+
+A continuación se presenta el código fuente completo en MIPS desarrollado para dar cumplimiento a los requerimientos del \textbf{Conjunto 1}. El programa implementa el almacenamiento estático de 8 números enteros, su impresión inicial y las subrutinas de ordenamiento por selección ascendente y descendente.
+
+\begin{lstlisting}[language=MIPS, caption={Programa en MIPS para almacenamiento, impresión y ordenamiento ascendente/descendente de un arreglo de 8 enteros.}, label={lst:mips_code}]
+.data
+    # Arreglo estatico de 8 enteros (32 bits = 4 bytes por palabra)
+    array:      .word 45, 12, 89, 7, 23, 64, 3, 50
+    size:       .word 8
+
+    # Mensajes para la interfaz de consola
+    msg_orig:   .asciiz "\n--- Lista Original ---\n"
+    msg_asc:    .asciiz "\n--- Lista Ordenada (Menor a Mayor) ---\n"
+    msg_desc:   .asciiz "\n--- Lista Ordenada (Mayor a Menor) ---\n"
+    space:      .asciiz "  "
+    newline:    .asciiz "\n"
+
+.text
+.globl main
+
+
+PUNTO DE ENTRADA PRINCIPAL (main)
+---------------------------------------------------------------------
+main:
+    # 1. Imprimir encabezado y lista original
+    la   $a0, msg_orig
+    li   $v0, 4
+    syscall
+
+    la   $a0, array
+    lw   $a1, size
+    jal  print_array
+
+    # 2. Ordenar de menor a mayor (Ascendente)
+    la   $a0, array
+    lw   $a1, size
+    jal  sort_ascending
+
+    # 3. Imprimir lista ordenada ascendentemente
+    la   $a0, msg_asc
+    li   $v0, 4
+    syscall
+
+    la   $a0, array
+    lw   $a1, size
+    jal  print_array
+
+    # 4. Ordenar de mayor a menor (Descendente)
+    la   $a0, array
+    lw   $a1, size
+    jal  sort_descending
+
+    # 5. Imprimir lista ordenada descendentemente
+    la   $a0, msg_desc
+    li   $v0, 4
+    syscall
+
+    la   $a0, array
+    lw   $a1, size
+    jal  print_array
+
+    # Finalizar programa (Syscall 10: Exit)
+    li   $v0, 10
+    syscall
+
+# ---------------------------------------------------------------------
+# SUBRUTINA: print_array
+# Argumentos: $a0 = Direccion base del arreglo, $a1 = Tamano (size)
+# ---------------------------------------------------------------------
+print_array:
+    move $t0, $a0        # $t0 = Puntero actual a memoria
+    move $t1, $a1        # $t1 = Contador de elementos restantes
+
+print_loop:
+    beq  $t1, $zero, print_end
+
+    # Cargar entero actual desde RAM e imprimirlo
+    lw   $a0, 0($t0)
+    li   $v0, 1
+    syscall
+
+    # Imprimir espacio separador
+    la   $a0, space
+    li   $v0, 4
+    syscall
+
+    # Avanzar puntero 4 bytes e decrementar contador
+    addi $t0, $t0, 4
+    addi $t1, $t1, -1
+    j    print_loop
+
+print_end:
+    # Imprimir salto de linea final y retornar
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+    jr   $ra
+
+# ---------------------------------------------------------------------
+# SUBRUTINA: sort_ascending (Selection Sort - Menor a Mayor)
+# Argumentos: $a0 = Direccion base, $a1 = Tamano (8)
+# ---------------------------------------------------------------------
+sort_ascending:
+    move $s0, $a0        # Base array
+    move $s1, $a1        # Size N
+
+    li   $t0, 0          # i = 0 (Bucle externo: 0 a N-2)
+    sub  $s2, $s1, 1     # s2 = N - 1
+
+outer_asc:
+    beq  $t0, $s2, end_sort_asc
+    move $t4, $t0        # min_idx = i
+
+    addi $t1, $t0, 1     # j = i + 1 (Bucle interno: i+1 a N-1)
+
+inner_asc:
+    beq  $t1, $s1, swap_asc
+
+    # Cargar array[j]
+    sll  $t2, $t1, 2
+    add  $t2, $s0, $t2
+    lw   $t3, 0($t2)     # $t3 = array[j]
+
+    # Cargar array[min_idx]
+    sll  $t5, $t4, 2
+    add  $t5, $s0, $t5
+    lw   $t6, 0($t5)     # $t6 = array[min_idx]
+
+    # Comparar: Si array[j] < array[min_idx], actualizar min_idx
+    slt  $t7, $t3, $t6
+    beq  $t7, $zero, next_inner_asc
+    move $t4, $t1        # min_idx = j
+
+next_inner_asc:
+    addi $t1, $t1, 1
+    j    inner_asc
+
+swap_asc:
+    # Intercambiar array[i] con array[min_idx]
+    sll  $t2, $t0, 2
+    add  $t2, $s0, $t2   # Direccion de array[i]
+    lw   $t3, 0($t2)     # Val original de array[i]
+
+    sll  $t5, $t4, 2
+    add  $t5, $s0, $t5   # Direccion de array[min_idx]
+    lw   $t6, 0($t5)     # Val minimo encontrado
+
+    sw   $t6, 0($t2)     # array[i] = array[min_idx]
+    sw   $t3, 0($t5)     # array[min_idx] = val original
+
+    addi $t0, $t0, 1
+    j    outer_asc
+
+end_sort_asc:
+    jr   $ra
+
+# ---------------------------------------------------------------------
+# SUBRUTINA: sort_descending (Selection Sort - Mayor a Menor)
+# Argumentos: $a0 = Direccion base, $a1 = Tamano (8)
+# ---------------------------------------------------------------------
+sort_descending:
+    move $s0, $a0        # Base array
+    move $s1, $a1        # Size N
+
+    li   $t0, 0          # i = 0
+    sub  $s2, $s1, 1     # s2 = N - 1
+
+outer_desc:
+    beq  $t0, $s2, end_sort_desc
+    move $t4, $t0        # max_idx = i
+
+    addi $t1, $t0, 1     # j = i + 1
+
+inner_desc:
+    beq  $t1, $s1, swap_desc
+
+    # Cargar array[j]
+    sll  $t2, $t1, 2
+    add  $t2, $s0, $t2
+    lw   $t3, 0($t2)
+
+    # Cargar array[max_idx]
+    sll  $t5, $t4, 2
+    add  $t5, $s0, $t5
+    lw   $t6, 0($t5)
+
+    # Comparar: Si array[max_idx] < array[j], actualizar max_idx
+    slt  $t7, $t6, $t3
+    beq  $t7, $zero, next_inner_desc
+    move $t4, $t1        # max_idx = j
+
+next_inner_desc:
+    addi $t1, $t1, 1
+    j    inner_desc
+
+swap_desc:
+    # Intercambiar array[i] con array[max_idx]
+    sll  $t2, $t0, 2
+    add  $t2, $s0, $t2
+    lw   $t3, 0($t2)
+
+    sll  $t5, $t4, 2
+    add  $t5, $s0, $t5
+    lw   $t6, 0($t5)
+
+    sw   $t6, 0($t2)
+    sw   $t3, 0($t5)
+
+    addi $t0, $t0, 1
+    j    outer_desc
+
+end_sort_desc:
+    jr   $ra
+\end{lstlisting}
+
+\end{document}
