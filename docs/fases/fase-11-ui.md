@@ -37,6 +37,35 @@ botella e histórico de estadísticas.
 La UI **no calcula ninguna métrica**: las pide. Todo el cálculo sigue viviendo
 en `metricas/app.py`, que es el único lugar donde está.
 
+## Principales dificultades
+
+1. **El ritmo de entrada decide qué etapa aparece como cuello.** Ingresando
+   lotes de golpe desde la UI, el cuello detectado es **fileteado**, no
+   envasado — y está bien: con todo inyectado a la vez, es en la primera cola
+   donde más se espera. Es la misma lección de la Fase 10 (dificultad 1), vista
+   ahora desde la interfaz: quien opere la UI en la demo tiene que ingresar los
+   lotes espaciados, o el tablero mostrará el resultado correcto para la
+   pregunta equivocada.
+
+2. **Cuando Redis se cae, el síntoma engaña.** Medido: con `redis` detenido,
+   `GET /metricas` y `POST /ordenes` **no responden en más de 30 s**, mientras
+   que el `GET /salud` de ambos servicios contesta en 0,02 s — porque `/salud`
+   no consulta Redis.
+
+   Desde la UI parecía que fallaban órdenes y métricas, cuando lo que faltaba
+   era Redis. Un mensaje que diga "no responde el servicio de órdenes" manda a
+   buscar el error al lugar equivocado.
+
+   Se resolvió en la UI con `diagnostico()`, que ante cualquier fallo consulta
+   el `/salud` de los tres y nombra al que realmente falta. Y con `timeout=3 s`
+   en las peticiones, para que el tablero corte y avise en vez de congelarse.
+
+   **Causa de fondo, en los servicios:** el cliente de Redis de `ordenes` y
+   `metricas` se crea sin `socket_connect_timeout`, así que una consulta a un
+   Redis caído espera el timeout de TCP del sistema operativo, que son minutos.
+   La Fase 12 pide "503 si una dependencia no responde"; hoy responden colgados.
+   **Pendiente para la Fase 12**, en los servicios, no en la UI.
+
 ## Decisiones tomadas en esta fase
 
 ### El histórico se arma en el cliente, no en un endpoint
@@ -90,35 +119,6 @@ línea; repetirlo en barras no agrega información, agrega pantalla que leer.
 
 El único gráfico es el histórico, porque es lo único que el diagrama no puede
 mostrar: la tendencia. Una foto no distingue una ráfaga pasajera de un atasco.
-
-## Principales dificultades
-
-1. **El ritmo de entrada decide qué etapa aparece como cuello.** Ingresando
-   lotes de golpe desde la UI, el cuello detectado es **fileteado**, no
-   envasado — y está bien: con todo inyectado a la vez, es en la primera cola
-   donde más se espera. Es la misma lección de la Fase 10 (dificultad 1), vista
-   ahora desde la interfaz: quien opere la UI en la demo tiene que ingresar los
-   lotes espaciados, o el tablero mostrará el resultado correcto para la
-   pregunta equivocada.
-
-2. **Cuando Redis se cae, el síntoma engaña.** Medido: con `redis` detenido,
-   `GET /metricas` y `POST /ordenes` **no responden en más de 30 s**, mientras
-   que el `GET /salud` de ambos servicios contesta en 0,02 s — porque `/salud`
-   no consulta Redis.
-
-   Desde la UI parecía que fallaban órdenes y métricas, cuando lo que faltaba
-   era Redis. Un mensaje que diga "no responde el servicio de órdenes" manda a
-   buscar el error al lugar equivocado.
-
-   Se resolvió en la UI con `diagnostico()`, que ante cualquier fallo consulta
-   el `/salud` de los tres y nombra al que realmente falta. Y con `timeout=3 s`
-   en las peticiones, para que el tablero corte y avise en vez de congelarse.
-
-   **Causa de fondo, en los servicios:** el cliente de Redis de `ordenes` y
-   `metricas` se crea sin `socket_connect_timeout`, así que una consulta a un
-   Redis caído espera el timeout de TCP del sistema operativo, que son minutos.
-   La Fase 12 pide "503 si una dependencia no responde"; hoy responden colgados.
-   **Pendiente para la Fase 12**, en los servicios, no en la UI.
 
 ## Verificación
 
