@@ -20,6 +20,8 @@ import os
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as PlazoAgotado
 from datetime import datetime, timezone
 
 import redis
@@ -56,6 +58,13 @@ r = redis.Redis(
     host=os.environ.get("REDIS_HOST", "redis"),
     port=int(os.environ.get("REDIS_PORT", "6379")),
     decode_responses=True,
+    # Fase 12: si Redis se cae, sin timeout de conexión el BRPOP se quedaría
+    # esperando el timeout de TCP del sistema operativo en vez de entrar al
+    # reintento del bucle. El socket_timeout debe ser MAYOR que el timeout del
+    # BRPOP (2 s): si no, cortaría conexiones sanas que solo están bloqueadas
+    # esperando trabajo.
+    socket_timeout=5,
+    socket_connect_timeout=2,
 )
 
 # Estado local de la réplica (contrato de GET /estado en docs/diseno.md §1.2).
@@ -195,12 +204,22 @@ def bucle_worker() -> None:
 app = FastAPI(title=f"estacion-{NOMBRE_ETAPA}")
 
 
+# Plazo duro para el LLEN de /estado (Fase 12): socket_connect_timeout no
+# cubre la resolución DNS, y con Redis detenido getaddrinfo tarda ~45 s en
+# rendirse — /estado se colgaría. El hilo del worker no lo necesita: a él un
+# reintento lento no le bloquea nada.
+PLAZO_REDIS_S = float(os.environ.get("PLAZO_REDIS_S", "2"))
+_hilos_estado = ThreadPoolExecutor(max_workers=2)
+
+
 @app.get("/estado")
 def get_estado() -> dict:
     """Estado de ESTA réplica; en_cola es el largo actual de su cola de entrada."""
+    futuro = _hilos_estado.submit(r.llen, COLA_ENTRADA)
     try:
-        en_cola = r.llen(COLA_ENTRADA)
-    except redis.exceptions.RedisError:
+        en_cola = futuro.result(timeout=PLAZO_REDIS_S)
+    except (PlazoAgotado, redis.exceptions.RedisError):
+        futuro.cancel()
         en_cola = None  # sin Redis no se puede saber; el resto sigue siendo válido
     return {**estado_local, "en_cola": en_cola}
 

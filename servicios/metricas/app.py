@@ -13,6 +13,8 @@ reflejar el presente y no el arrastre histórico. `en_cola` sale de Redis
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as PlazoAgotado
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -51,6 +53,11 @@ r = redis.Redis(
     host=os.environ.get("REDIS_HOST", "redis"),
     port=int(os.environ.get("REDIS_PORT", "6379")),
     decode_responses=True,
+    # Fase 12: con Redis caído, cada LLEN esperaría el timeout de TCP del
+    # sistema operativo (minutos) y /metricas se colgaría. Con esto, el LLEN
+    # falla en ~2 s, en_cola sale null y el resto de la respuesta sigue válido.
+    socket_timeout=2,
+    socket_connect_timeout=2,
 )
 
 app = FastAPI(
@@ -59,6 +66,32 @@ app = FastAPI(
 )
 
 bd.inicializar()
+
+# --- Plazo duro para leer las colas (Fase 12) --------------------------------
+# socket_connect_timeout no cubre la resolución DNS: con Redis detenido su
+# nombre desaparece del DNS de Docker y getaddrinfo tarda ~45 s en rendirse.
+# Los LLEN se piden TODOS juntos (pipeline) en un hilo aparte con plazo: si no
+# llegan a tiempo, en_cola sale null para todas las etapas y el resto de la
+# respuesta sigue siendo válido — /metricas nunca se cuelga por Redis.
+PLAZO_REDIS_S = float(os.environ.get("PLAZO_REDIS_S", "2"))
+_hilos_redis = ThreadPoolExecutor(max_workers=2)
+
+
+def largos_de_colas() -> dict:
+    """{etapa: largo de su cola}, o todo None si Redis no responde a tiempo."""
+
+    def _todos() -> dict:
+        canal = r.pipeline()
+        for etapa in ETAPAS:
+            canal.llen(f"cola:{etapa}")
+        return dict(zip(ETAPAS, canal.execute()))
+
+    futuro = _hilos_redis.submit(_todos)
+    try:
+        return futuro.result(timeout=PLAZO_REDIS_S)
+    except (PlazoAgotado, redis.exceptions.RedisError):
+        futuro.cancel()  # si quedó en cola, que no corra después de viejo
+        return {etapa: None for etapa in ETAPAS}
 
 
 def _ts(texto: str) -> datetime:
@@ -86,6 +119,7 @@ def calcular_metricas(ventana_s: float) -> dict:
     """Espera/servicio promedio por etapa en la ventana, en_cola y lead time."""
     corte = datetime.now(timezone.utc) - timedelta(seconds=ventana_s)
     tiempos = _cargar_tiempos()
+    largos = largos_de_colas()  # una sola consulta a Redis, con plazo
 
     etapas = {}
     for etapa in ETAPAS:
@@ -101,14 +135,10 @@ def calcular_metricas(ventana_s: float) -> dict:
                 esperas.append((t["inicia"] - t["entra_cola"]).total_seconds())
             if "termina" in t and "inicia" in t and t["termina"] >= corte:
                 servicios.append((t["termina"] - t["inicia"]).total_seconds())
-        try:
-            en_cola = r.llen(f"cola:{etapa}")
-        except redis.exceptions.RedisError:
-            en_cola = None  # sin Redis no se ve la cola; el resto sigue válido
         etapas[etapa] = {
             "espera_promedio_s": _promedio(esperas),
             "servicio_promedio_s": _promedio(servicios),
-            "en_cola": en_cola,
+            "en_cola": largos[etapa],  # None si Redis no respondió a tiempo
             "procesadas": procesadas,
         }
 

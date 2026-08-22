@@ -7,6 +7,8 @@ de Redis no deje órdenes fantasma en la base.
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as PlazoAgotado
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -22,6 +24,11 @@ r = redis.Redis(
     host=os.environ.get("REDIS_HOST", "redis"),
     port=int(os.environ.get("REDIS_PORT", "6379")),
     decode_responses=True,
+    # Fase 12: sin estos timeouts, una petición con Redis caído se queda
+    # esperando el timeout de TCP del sistema operativo (minutos) y el 503
+    # nunca llega. Con ellos, la falla se detecta en ~2 s y se responde 503.
+    socket_timeout=2,
+    socket_connect_timeout=2,
 )
 COLA_PRIMERA_ETAPA = os.environ.get("COLA_PRIMERA_ETAPA", "cola:fileteado")
 PRIMERA_ETAPA = COLA_PRIMERA_ETAPA.split(":", 1)[1]  # "cola:fileteado" -> "fileteado"
@@ -32,6 +39,29 @@ app = FastAPI(
 )
 
 bd.inicializar()
+
+# --- Plazo duro para detectar a Redis caído (Fase 12) -----------------------
+# socket_connect_timeout NO cubre la resolución DNS: con el contenedor de
+# Redis detenido, su nombre desaparece del DNS interno de Docker y getaddrinfo
+# tarda ~45 s en rendirse — el 503 llegaría tardísimo (medido en la Fase 12).
+# El PING se corre en un hilo aparte y se espera a lo más PLAZO_REDIS_S; si no
+# llega, Redis se da por caído YA y el hilo muere solo cuando el sistema
+# operativo suelte la consulta DNS.
+PLAZO_REDIS_S = float(os.environ.get("PLAZO_REDIS_S", "2"))
+_hilos_ping = ThreadPoolExecutor(max_workers=2)
+
+
+def verificar_redis() -> None:
+    """Corta con 503 en ≤PLAZO_REDIS_S segundos si Redis no responde."""
+    futuro = _hilos_ping.submit(r.ping)
+    try:
+        futuro.result(timeout=PLAZO_REDIS_S)
+    except (PlazoAgotado, redis.exceptions.RedisError):
+        futuro.cancel()  # si quedó en cola, que no corra después de viejo
+        raise HTTPException(
+            status_code=503,
+            detail="sin conexión con el servicio de coordinación (Redis); intente de nuevo",
+        )
 
 
 # --- Modelos (el contrato de entrada/salida) -------------------------------
@@ -63,6 +93,10 @@ def crear_orden(entrada: OrdenEntrada) -> dict:
     INSERT se deshace, no se crea nada y se responde 503 — una orden guardada
     pero nunca encolada quedaría en_proceso para siempre.
     """
+    # Primero el portero: si Redis está caído, 503 en ~2 s en vez de colgarse
+    # esperando al DNS. El try/except de abajo sigue cubriendo la carrera rara
+    # de que Redis se caiga justo entre este chequeo y el LPUSH.
+    verificar_redis()
     ahora = datetime.now(timezone.utc).isoformat()
     try:
         with bd.transaccion() as con:

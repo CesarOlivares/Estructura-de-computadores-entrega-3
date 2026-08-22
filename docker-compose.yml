@@ -7,10 +7,21 @@
 
 # Configuración común de toda estación: misma imagen, mismo volumen; cada
 # etapa solo cambia sus variables de entorno.
+#
+# Healthcheck (Fase 12): el chequeo corre DENTRO del contenedor con la python
+# de la propia imagen (las imágenes slim no traen curl). Si /salud no responde,
+# `docker compose ps` marca el servicio como unhealthy y se ve de un vistazo.
 x-estacion: &estacion
   build: ./servicios/estacion
   volumes:
     - datos:/datos
+  healthcheck:
+    test: ["CMD", "python", "-c",
+           "import urllib.request; urllib.request.urlopen('http://localhost:8080/salud', timeout=3)"]
+    interval: 10s
+    timeout: 5s
+    retries: 3
+    start_period: 10s
   depends_on:
     redis:
       condition: service_healthy
@@ -35,8 +46,16 @@ services:
     environment:
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
     volumes:
       - datos:/datos
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/salud', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       redis:
         condition: service_healthy
@@ -55,8 +74,16 @@ services:
       # Mismos CICLO_* que usan las estaciones: si un experimento cambia un
       # tiempo de ciclo, los umbrales del cuello de botella se ajustan solos.
       TIEMPOS_CICLO: "fileteado:${CICLO_FILETEADO:-4},envasado:${CICLO_ENVASADO:-12},sellado:${CICLO_SELLADO:-3},esterilizacion:${CICLO_ESTERILIZACION:-7}"
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
     volumes:
       - datos:/datos
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8001/salud', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       redis:
         condition: service_healthy
@@ -69,6 +96,7 @@ services:
       COLA_SALIDA: cola:envasado
       TIEMPO_CICLO: ${CICLO_FILETEADO:-4}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
 
@@ -82,6 +110,7 @@ services:
       COLA_SALIDA: cola:sellado
       TIEMPO_CICLO: ${CICLO_ENVASADO:-12}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
 
@@ -98,6 +127,7 @@ services:
       COLA_SALIDA: cola:sellado
       TIEMPO_CICLO: ${CICLO_ENVASADO_LENTO:-24}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
 
@@ -109,6 +139,7 @@ services:
       COLA_SALIDA: cola:esterilizacion
       TIEMPO_CICLO: ${CICLO_SELLADO:-3}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
 
@@ -120,6 +151,7 @@ services:
       COLA_SALIDA: cola:listos
       TIEMPO_CICLO: ${CICLO_ESTERILIZACION:-7}
       MODO_RECLAMO: ${MODO_RECLAMO:-atomico}
+      PLAZO_REDIS_S: ${PLAZO_REDIS_S:-2}
       REDIS_HOST: redis
       DB_RUTA: /datos/planta.db
 
@@ -136,6 +168,14 @@ services:
       URL_ORDENES: http://ordenes:8000
       URL_METRICAS: http://metricas:8001
       REDIS_HOST: redis
+    healthcheck:
+      # Streamlit trae su propio endpoint de salud.
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
       redis:
         condition: service_healthy
