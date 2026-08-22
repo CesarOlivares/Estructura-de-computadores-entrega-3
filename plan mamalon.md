@@ -849,27 +849,43 @@ arreglarla.**
 
 ## 10. Estado actual
 
-**Actualizado 21/08/2026 (tarde).** Fases **0 a 10 completas y verificadas**,
-cada una con su commit y su bitácora en `docs/fases/`. La Fase 0 además
-rehecha y verificada en la **máquina 2** (ver `docs/fases/fase-0-entorno.md`;
-Ubuntu y datos de Docker viven en D: por falta de espacio en C:).
+**Actualizado 22/08/2026 (madrugada).** Fases **0 a 14 completas y
+verificadas**, cada una con su commit y su bitácora en `docs/fases/`.
+**Fase 15 EN CURSO**: borrador completo del informe en
+`Informe estructura 3/informe_caso2.tex` (plantilla USACH de la entrega
+anterior) y guion de defensa con preguntas probables en `docs/defensa.md`.
 
-Pendiente transversal: la **prueba de equipo de la Fase 2** (cuestionario de
-`docs/diseno.md` §6 respondido por ambos sin mirar el documento) sigue sin
-rendirse. Ya no bloquea el reparto (8–10 están hechas), pero es obligatoria
-antes de la defensa.
+**Pendientes del equipo antes de la defensa (24/08, 11:30):**
 
-Hitos técnicos ya demostrados: condición de carrera reproducida y resuelta
-(Fase 6, par de commits), balanceo por demanda con réplica lenta procesando
-menos (Fase 7), persistencia que sobrevive a `docker compose down` (Fase 8),
-métricas coherentes con los ciclos configurados (Fase 9: servicios promedio
-4.27/12.31/3.16/7.17 s contra ciclos 4/12/3/7 s), y detección de cuello de
-botella que pasa a crítico y se recupera **sola** (Fase 10, decisión abierta
-#2 cerrada: ventana 60 s, advertencia ≥1.5× ciclo, crítico ≥3× ciclo).
+1. Compilar el informe (Overleaf/pdflatex), capturas del tablero para anexos,
+   ajustar a ≤15 páginas.
+2. Pasar `docs/defensa.md` a slides PDF y **ensayar cronometrado** (≤15 min).
+3. **Prueba de equipo de la Fase 2** (cuestionario de `docs/diseno.md` §6,
+   ambos sin mirar el documento) — obligatoria.
+4. Prueba de clon limpio en la **máquina 2** (la hizo la máquina 1; el plan
+   exige que la haga el integrante que no escribió el README).
+5. Armar el `.zip` del código fuente.
 
-**La siguiente es la Fase 11 (UI Streamlit)**, que incluye implementar
-`GET /metricas/historico` en metrics-api (contrato ya definido en
-`docs/diseno.md` §1.3). Después 12 → 13 → 14 → 15 en orden.
+Hitos técnicos demostrados con datos: condición de carrera reproducida y
+resuelta (Fase 6), balanceo por demanda con réplica lenta procesando menos
+(Fase 7 y experimento 4: **11/12/7** contra 10/10/10 de un round-robin),
+persistencia que sobrevive a `down` (Fase 8), métricas coherentes con los
+ciclos (Fase 9), cuello de botella que pasa a crítico y se recupera **solo**
+(Fases 10 y exp. 5: ráfaga → crítico a los 32 s → todo normal a los 278 s),
+UI completa con interacción real e histórico (Fase 11, hecha por el
+integrante B), **503 en 2,1 s con Redis caído** (Fase 12 — el cuelgue estaba
+en el DNS, 46 s medidos; se resolvió con plazo duro en hilo aparte), clon
+limpio verificado (Fase 13), y el **resultado estrella** (Fase 14, exp. 1–3):
+
+| Réplicas envasado | Cuello detectado | Lead time |
+|---|---|---|
+| 1 | envasado (espera 67,8 s) | 82,9 s |
+| 2 | **esterilización** (25,2 s) | 65,6 s (−21 %) |
+| 3 | esterilización (34,5 s) | 62,0 s (−5 %) |
+
+Desvío consciente del contrato: `GET /metricas/historico` **no se implementó**
+(decisión de la Fase 11: el histórico lo arma la UI muestreando `/metricas`;
+queda documentado en su bitácora como decisión, no olvido).
 
 ### Lo que ya está hecho
 
@@ -890,10 +906,10 @@ botella que pasa a crítico y se recupera **sola** (Fase 10, decisión abierta
 
 ### Lo que falta
 
-Las fases 11 a 15, más la **prueba de equipo de la Fase 2** (cuestionario de
-`docs/diseno.md` §6, ambos integrantes sin mirar el documento) y
-`GET /metricas/historico` (va junto con la Fase 11). El detalle del avance
-por fase vive en las bitácoras de `docs/fases/`.
+Solo el cierre de la Fase 15 (compilar informe, capturas, slides, ensayo,
+.zip), la **prueba de equipo de la Fase 2** y la prueba de clon limpio en la
+máquina 2. El detalle del avance por fase vive en las bitácoras de
+`docs/fases/`.
 
 ### Reparto sugerido entre los dos
 
@@ -934,10 +950,10 @@ de rúbrica):
 
 ### Siguiente acción concreta
 
-Fase 11: la UI Streamlit (timeline, carga por réplica, alerta de cuello,
-histórico y formulario de creación de órdenes), implementando de paso
-`GET /metricas/historico` en metrics-api. Además, en cuanto estén juntos:
-pasar la prueba de equipo de la Fase 2 (obligatoria antes de la defensa).
+Cerrar la Fase 15: compilar `Informe estructura 3/informe_caso2.tex`, tomar
+las capturas del tablero para los anexos, pasar `docs/defensa.md` a slides y
+ensayar cronometrado. En cuanto estén juntos: prueba de equipo de la Fase 2 y
+clon limpio en la máquina 2.
 
 ---
 

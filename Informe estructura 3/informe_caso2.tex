@@ -1,0 +1,610 @@
+% =============================================================================
+% INFORME — Evaluación 3 ECSD · Caso 2: Línea de Producción con Balanceo Dinámico
+% BORRADOR generado desde las bitácoras de docs/fases/ — revisar antes de entregar.
+% Compilar con pdfLaTeX o LuaLaTeX (misma plantilla del informe anterior).
+% =============================================================================
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[spanish, es-tabla]{babel}
+\deactivatequoting
+\usepackage[margin=2.54cm, top=4.2cm, bottom=3.2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{eso-pic}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
+
+\usepackage{iftex}
+\ifpdftex
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+  \providecommand{\robotocon}{\sffamily}
+\else
+  \usepackage{fontspec}
+  \setmainfont{Libre Franklin}[UprightFont = *-Thin, BoldFont = *-Bold]
+  \newfontfamily\robotocon{Roboto Condensed}[UprightFont = *-Regular, BoldFont = *-Bold]
+\fi
+
+\definecolor{usachteal}{RGB}{0,155,138}
+\definecolor{usachdark}{RGB}{28,32,38}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+\hypersetup{hidelinks, colorlinks=true, linkcolor=usachdark, citecolor=usachteal, urlcolor=usachteal}
+
+\lstdefinestyle{codigo}{
+    backgroundcolor=\color{backcolour},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    showstringspaces=false,
+    tabsize=2
+}
+\lstset{style=codigo}
+
+\tikzset{
+  etapa/.style={rectangle, rounded corners, minimum width=2.3cm, minimum height=0.9cm, text centered, draw=usachdark, fill=usachdark!5, font=\small},
+  etaparep/.style={rectangle, rounded corners, minimum width=2.3cm, minimum height=0.9cm, text centered, draw=usachteal, fill=usachteal!15, font=\small\bfseries},
+  colaq/.style={rectangle, minimum width=1.1cm, minimum height=0.7cm, text centered, draw=usachdark!60, fill=orange!10, font=\scriptsize},
+  nodo/.style={rectangle, rounded corners, draw=usachteal, fill=usachteal!8, font=\small\bfseries, inner sep=8pt},
+  arrow/.style={thick,->,>=stealth,color=usachdark}
+}
+
+\AddToShipoutPictureBG{%
+  \AtPageUpperLeft{%
+    \raisebox{-\paperheight}{%
+      \includegraphics[width=\paperwidth, height=\paperheight]{portada.png}%
+    }%
+  }%
+}
+
+\titleformat{\section}{\large\bfseries\color{usachteal}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{usachdark}}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}{\small\bfseries\color{usachteal}}{\thesubsubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{2pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{52pt}
+\fancyhead[L]{{\small\robotocon\bfseries\color{usachdark} USACH\;|\;\color{usachteal} EVALUACIÓN 3 ECSD — CASO 2}}
+\fancyhead[R]{\small\color{gray}\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\setstretch{1.25}
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+\tolerance=1
+\emergencystretch=\maxdimen
+\hyphenpenalty=10000
+\hbadness=10000
+
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\author{César Olivares \\ Simón García-Huidobro}
+
+\begin{document}
+
+% ============================== PORTADA ======================================
+\begin{titlepage}
+\begin{flushright}
+\begin{tabular}{cl}
+ & \multirow{4}{*}{\includegraphics[width=2.8cm]{logoBN.png}} \\[5pt]
+ \textbf{UNIVERSIDAD DE SANTIAGO DE CHILE} & \\[3pt]
+ \textbf{DEPARTAMENTO DE INGENIERÍA MECÁNICA} & \\[3pt]
+ \textbf{INGENIERÍA CIVIL MECATRÓNICA} &
+\end{tabular}
+\end{flushright}
+
+\vspace{1.5cm}
+\begin{center}
+{\Large \textbf{Estructura de Computadores y Sistemas Distribuidos}}\\[8pt]
+{\large \textbf{Evaluación 3 — Caso 2: Línea de Producción con Balanceo Dinámico}}\\[12pt]
+{\small \textbf{Sistema distribuido de simulación de una línea conservera con coordinación por colas, detección de cuellos de botella en vivo y tablero de operaciones}}
+\end{center}
+
+\vspace{1.5cm}
+\begin{center}
+\textbf{Integrantes:}\\[4pt]
+César Olivares\\
+Simón García-Huidobro\\[12pt]
+\textbf{Profesor:}\\[4pt]
+Daniel Calderón R.
+\end{center}
+\vfill
+\begin{center}
+\textbf{Santiago, Chile\\ \today}
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =============================================================================
+\section{Introducción}
+
+Este informe presenta el diseño, implementación y evaluación experimental de un
+sistema distribuido que simula una \textbf{línea de producción con balanceo
+dinámico de carga} (Caso 2). El dominio elegido es una planta conservera
+\textbf{ficticia} de jurel en lata de 425~g, inspirada en la industria
+conservera nacional, con cuatro etapas en serie:
+
+\begin{center}
+\texttt{cola} $\to$ FILETEADO $\to$ \texttt{cola} $\to$ \textbf{ENVASADO} $\to$
+\texttt{cola} $\to$ SELLADO $\to$ \texttt{cola} $\to$ ESTERILIZACIÓN $\to$ listos
+\end{center}
+
+\begin{table}[H]
+\centering
+\caption{Etapas de la línea y tiempos de ciclo simulados (supuesto declarado, §\ref{sec:supuestos}).}
+\small
+\begin{tabular}{L{3cm} L{4.5cm} C{2.5cm} C{2.5cm}}
+\toprule
+\textbf{Etapa} & \textbf{Naturaleza} & \textbf{Ciclo (s/lote)} & \textbf{Réplicas} \\
+\midrule
+Fileteado & Manual, paralelizable & 4 & 1 \\
+\textbf{Envasado} & Máquina continua & \textbf{12} & \textbf{1--3 (replicada)} \\
+Sellado & Máquina rápida & 3 & 1 \\
+Esterilización & Autoclave, ciclo fijo & 7 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La unidad de trabajo es el \textbf{lote} (una cantidad de latas del mismo
+formato). El sistema cumple los requisitos del enunciado: arquitectura
+distribuida con más de tres servicios en tres nodos lógicos, una etapa
+replicada detrás de un mecanismo de balanceo, coordinación del reparto sin
+condiciones de carrera, detección de cuellos de botella \emph{en vivo},
+persistencia, interfaz de operación con interacción real, y despliegue completo
+con un solo comando (\texttt{docker compose up}).
+
+El resultado experimental central (§\ref{sec:experimentos}) demuestra
+literalmente la premisa del caso: al escalar envasado de 1 a 2 réplicas, el
+cuello de botella \textbf{se desplaza} de envasado a esterilización y el lead
+time cae un 21~\%; una tercera réplica ya casi no mejora nada, porque el límite
+se mudó de etapa.
+
+% =============================================================================
+\section{Arquitectura del sistema}
+
+\subsection{Servicios}
+
+\begin{table}[H]
+\centering
+\caption{Servicios del sistema. Todos en Python; API con FastAPI, UI con Streamlit.}
+\small
+\begin{tabular}{L{3.2cm} L{6.8cm} L{3.6cm}}
+\toprule
+\textbf{Servicio} & \textbf{Responsabilidad} & \textbf{Tecnología} \\
+\midrule
+\texttt{orders-api} & Crea órdenes, las persiste y las encola & FastAPI + SQLite + Redis \\
+\texttt{estacion} ($\times$4--6) & Procesa lotes; una imagen única configurada por variables de entorno & Python + Redis + SQLite \\
+\texttt{metrics-api} & Calcula espera, servicio y lead time; detecta el cuello de botella & FastAPI + SQLite + Redis \\
+\texttt{ui} & Tablero de operaciones: timeline, carga por réplica, alertas, histórico, creación de órdenes & Streamlit \\
+Redis & Colas de trabajo y estado de réplicas & Redis 7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Las cuatro estaciones son \textbf{un solo programa} desplegado cuatro (o más)
+veces: la etapa, sus colas de entrada/salida y su tiempo de ciclo llegan por
+variables de entorno (\texttt{NOMBRE\_ETAPA}, \texttt{COLA\_ENTRADA},
+\texttt{COLA\_SALIDA}, \texttt{TIEMPO\_CICLO}). Escalar la etapa replicada es
+\texttt{docker compose up --scale envasado=3}: ninguna réplica sabe cuántas
+hermanas tiene ni necesita saberlo.
+
+\subsection{Nodos lógicos y su justificación}
+\label{sec:nodos}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.6cm and 1.2cm]
+  \node (na) [nodo, minimum width=3.6cm, minimum height=2.6cm, label={[font=\small\bfseries]above:NODO A — operación}] {};
+  \node at (na.center) [align=center, font=\small] {Streamlit (UI)\\ orders-api};
+  \node (nb) [nodo, right=of na, minimum width=4.2cm, minimum height=2.6cm, label={[font=\small\bfseries]above:NODO B — procesamiento}] {};
+  \node at (nb.center) [align=center, font=\small] {fileteado\\ envasado $\times$1--3\\ sellado · esterilización};
+  \node (nc) [nodo, right=of nb, minimum width=3.6cm, minimum height=2.6cm, label={[font=\small\bfseries]above:NODO C — estado}] {};
+  \node at (nc.center) [align=center, font=\small] {Redis\\ metrics-api\\ SQLite};
+  \draw [arrow, <->] (na) -- (nb);
+  \draw [arrow, <->] (nb) -- (nc);
+  \draw [arrow, <->] (na.south) to[bend right=18] (nc.south);
+\end{tikzpicture}
+\caption{Los tres nodos lógicos y sus comunicaciones (HTTP/JSON y protocolo Redis).}
+\end{figure}
+
+La agrupación no es arbitraria: cada nodo reúne responsabilidades que
+\textbf{cambian de escala por motivos distintos}. El nodo B es el único que se
+replica bajo carga (agregar capacidad de procesamiento = agregar contenedores
+ahí). El nodo C concentra el estado compartido, que por ser compartido
+\emph{no puede} duplicarse sin coordinación adicional. El nodo A expone el
+sistema al operador y escala con los usuarios, no con la producción.
+
+\textbf{Por qué mantener dos o más nodos} (exigencia de la rúbrica): además de
+ser requisito del enunciado, separa dominios de falla y de recursos — la
+saturación de CPU de las estaciones (nodo B) no degrada la atención HTTP del
+operador (nodo A) ni la integridad del estado (nodo C); y permite dimensionar
+hardware distinto para cargas distintas (B necesita CPU, C necesita disco
+confiable). La sección §\ref{sec:resiliencia} discute cómo se abordaría la
+resiliencia sobre esta misma división.
+
+\subsection{Flujo de una orden}
+
+Una orden nace en \texttt{orders-api} (\texttt{POST /ordenes}): se inserta en
+SQLite, se registra su evento \texttt{entra\_cola} y su id se empuja a
+\texttt{cola:fileteado} — todo dentro de una transacción, de modo que si Redis
+no responde no quedan ``órdenes fantasma'' guardadas pero nunca encoladas.
+Cada estación repite el mismo ciclo: reclama un id de su cola de entrada
+(\texttt{BRPOP}), registra \texttt{inicia}, simula el ciclo
+(\texttt{sleep(TIEMPO\_CICLO)}), registra \texttt{termina} y
+\texttt{entra\_cola} de la etapa siguiente, y empuja el id a la cola siguiente.
+La última etapa marca la orden como \texttt{terminada}.
+
+% =============================================================================
+\section{Decisiones de diseño}
+
+\subsection{Balanceo por demanda: cola \emph{pull}, no balanceador clásico}
+\label{sec:pull}
+
+El enunciado sugiere ``réplicas detrás de un balanceador''. Decidimos —y es una
+\textbf{decisión nuestra que defendemos aquí}— implementar el balanceo como
+\textbf{cola de trabajo compartida}: las réplicas \emph{piden} un lote cuando
+quedan libres, en vez de recibirlo asignado por una pieza intermedia.
+
+\begin{enumerate}[leftmargin=*]
+  \item Es lo único que produce balanceo \textbf{dinámico} real. Un
+        round-robin le seguiría enviando lotes a una réplica lenta o atascada;
+        con reparto por demanda, la réplica lenta simplemente pide menos veces.
+        El experimento 4 (§\ref{sec:exp4}) lo muestra con datos: 11/12/7.
+  \item Resuelve la condición de carrera \textbf{con el mismo mecanismo}: la
+        extracción atómica de la cola es a la vez el reparto y la garantía de
+        exclusión (§\ref{sec:carrera}), sin una pieza extra que configurar ni
+        un lock con expiración que se pueda vencer en el momento equivocado.
+  \item El reparto emergente es proporcional a la capacidad real de cada
+        réplica, sin conocer cuántas hay: \texttt{--scale envasado=3} funciona
+        sin tocar configuración.
+\end{enumerate}
+
+El ``balanceador'' del enunciado existe, pero es la cola: el punto único por
+el que pasa el trabajo y que decide quién procesa qué. Si se exigiera un
+balanceador HTTP clásico, un Nginx delante de las réplicas cubriría las
+consultas de estado; para el \emph{trabajo}, el reparto por demanda es
+estrictamente superior en este caso.
+
+\subsection{Coordinación y condición de carrera: provocarla antes de resolverla}
+\label{sec:carrera}
+
+El requisito de coordinación (``que dos réplicas no tomen la misma orden'') se
+abordó en dos pasos deliberados, ambos preservados en el historial de commits:
+
+\textbf{Versión ingenua (commiteada rota a propósito).} Reclamar una orden en
+dos operaciones: mirar la cola (\texttt{LRANGE}) y después sacar el elemento
+(\texttt{LREM}). Entre ambas hay una ventana en la que otra réplica ve
+\emph{la misma} orden. Con 3 réplicas y 200 órdenes, el experimento reprodujo
+órdenes procesadas dos veces — la evidencia de que el problema es real y no
+teórico.
+
+\textbf{Versión atómica.} \texttt{BRPOP}: extracción bloqueante en \textbf{una
+sola operación indivisible}. Redis, al ser monohilo en la atención de
+comandos, garantiza que cada elemento se entrega a exactamente una réplica
+aunque haya varias esperando sobre la misma cola. Mismo experimento:
+\textbf{0 duplicados en 200 órdenes}.
+
+Se prefirió la operación atómica de cola por sobre un lock/contador distribuido
+(la alternativa que el enunciado menciona como ejemplo) porque elimina la
+ventana en vez de administrarla: no hay TTL que expire a mitad de un ciclo ni
+liberación de lock que se pueda olvidar. El requisito del ``lock/contador
+distribuido'' está cubierto por el mismo Redis que serializa las extracciones.
+
+\subsection{Criterio de cuello de botella: espera, no servicio}
+\label{sec:criterio}
+
+El enunciado no define qué es un cuello de botella; el criterio es una
+\textbf{decisión nuestra} y es el argumento técnico central del proyecto:
+
+\begin{quote}
+El cuello de botella es la etapa con \textbf{mayor tiempo de espera promedio en
+una ventana móvil}, siempre que supere su umbral de advertencia. Si ninguna lo
+supera, no hay cuello (\texttt{cuello: null}).
+\end{quote}
+
+Con los eventos de cada orden se definen, por etapa:
+\[
+\text{espera} = t_{\text{inicia}} - t_{\text{entra\_cola}}, \qquad
+\text{servicio} = t_{\text{termina}} - t_{\text{inicia}}, \qquad
+\text{lead time} = t_{\text{fin}} - t_{\text{creada}}
+\]
+
+Un tiempo de \emph{servicio} alto solo dice que la tarea es larga; el atasco es
+trabajo llegando más rápido de lo que la etapa lo drena, y eso se manifiesta en
+la \emph{espera}. El experimento 2 lo ilustra: la etapa señalada como cuello
+(esterilización, ciclo 7~s) tiene un ciclo \textbf{más corto} que envasado
+(12~s) — un criterio por tiempo de servicio jamás la habría encontrado.
+
+Los estados por etapa usan umbrales \textbf{relativos al ciclo de cada etapa}
+(10~s de espera son graves para sellado, ciclo 3~s, y poca cosa para envasado,
+ciclo 12~s): \texttt{advertencia} si espera $\geq 1{,}5\times$ciclo,
+\texttt{crítico} si $\geq 3\times$ciclo, sobre una ventana móvil de 60~s. La
+ventana además hace que la recuperación sea automática: cuando las esperas
+viejas salen de la ventana, la etapa vuelve sola a \texttt{normal}
+(experimento 5).
+
+\subsection{Persistencia: dos tablas y nada guardado dos veces}
+
+SQLite en un volumen de Docker, con dos tablas:
+\texttt{ordenes(id, producto, cantidad, estado, creada\_en, terminada\_en)} y
+\texttt{eventos(id, orden\_id, etapa, replica\_id, tipo, timestamp)}, donde
+\texttt{tipo} $\in$ \{\texttt{entra\_cola}, \texttt{inicia}, \texttt{termina}\}.
+Una orden completa genera 12 eventos (3 por etapa). Espera, servicio y lead
+time \textbf{no se almacenan}: se calculan siempre desde \texttt{eventos} — el
+dato guardado dos veces es el dato que se contradice. La base sobrevive a
+\texttt{docker compose down} (verificado); \texttt{down -v} la borra a
+propósito. Varios contenedores escriben la misma base: se usa WAL,
+\texttt{busy\_timeout} y una conexión por operación.
+
+\subsection{Interfaz de operación}
+
+El tablero (Streamlit, puerto 8501) cumple los cuatro requisitos de UI del
+enunciado y el histórico que exige la rúbrica: \textbf{(1)} timeline de
+producción — las cuatro etapas con sus colas, lotes esperando y estado;
+\textbf{(2)} indicador de carga por réplica — cada réplica publica un latido en
+el hash \texttt{estado:replicas} de Redis con su etapa, ocupación, lotes
+procesados y tiempo de ciclo, y la UI descarta latidos de más de 30~s (una
+réplica apagada no debe aparecer trabajando); \textbf{(3)} alerta visual del
+cuello de botella con la \emph{razón} del diagnóstico; \textbf{(4)} creación de
+órdenes desde la interfaz (\texttt{POST /ordenes}) — interacción real, no solo
+visualización; y \textbf{(5)} gráfico histórico de la espera por etapa.
+La UI no calcula ninguna métrica: las pide a \texttt{metrics-api}. Regla visual
+adoptada: el color marca \emph{importancia}, no identidad — lo normal se dibuja
+en gris y el color fuerte queda reservado para advertencia (ámbar) y crítico
+(rojo), siempre acompañado de icono y texto.
+
+% =============================================================================
+\section{Resultados experimentales}
+\label{sec:experimentos}
+
+Protocolo (experimentos 1--3): estado limpio, inyección de 1 orden cada 5~s
+durante 180~s vía \texttt{POST /ordenes}, medición al final con ventana de
+60~s. La llegada (0{,}20 lotes/s) supera la capacidad de envasado con una
+réplica (1/12 = 0{,}083) y la de esterilización (1/7 = 0{,}143), pero no la de
+fileteado (0{,}25) ni sellado (0{,}33). Datos crudos en
+\texttt{experimentos/resultados/}.
+
+\subsection{Experimentos 1--3: el cuello se desplaza al escalar}
+
+\begin{table}[H]
+\centering
+\caption{Resultado central: espera promedio por etapa (s) según réplicas de envasado.}
+\label{tab:central}
+\small
+\begin{tabular}{C{2.2cm} C{2.2cm} C{2.2cm} C{2.2cm} C{2.6cm} C{2.4cm}}
+\toprule
+\textbf{Réplicas} & \textbf{Fileteado} & \textbf{Envasado} & \textbf{Sellado} & \textbf{Esterilización} & \textbf{Lead time} \\
+\midrule
+1 & 0{,}66 & \textbf{67{,}78 (crítico)} & 0{,}68 & 0{,}88 & 82{,}9 s \\
+2 & 0{,}18 & 17{,}52 & 0{,}74 & \textbf{25{,}21 (crítico)} & 65{,}6 s \\
+3 & 0{,}22 & 0{,}73 & 0{,}89 & \textbf{34{,}50 (crítico)} & 62{,}0 s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{1 réplica:} envasado acumula 14 lotes en cola y espera de
+        67{,}8~s; el resto de la línea, ociosa a ratos, espera $<1$~s.
+  \item \textbf{2 réplicas:} el reparto por demanda divide el trabajo (13/12
+        lotes por réplica) y el tiempo efectivo de envasado baja a $\sim$6~s
+        por lote. El cuello \textbf{se desplaza a esterilización} — la premisa
+        del caso, demostrada con datos. Lead time: $-21\,\%$.
+  \item \textbf{3 réplicas:} envasado queda con capacidad sobrada (espera
+        0{,}7~s), pero el lead time solo mejora otro 5~\%: el límite ya no
+        está ahí. La inversión correcta siguiente sería una segunda autoclave,
+        no una tercera envasadora.
+\end{itemize}
+
+Los tiempos de servicio medidos (4{,}6--5{,}0 / 12{,}2--13{,}0 / 3{,}3--3{,}5 /
+7{,}3~s) coinciden con los ciclos configurados (4/12/3/7~s), lo que valida la
+instrumentación.
+
+\subsection{Experimento 4: balanceo dinámico con una réplica lenta}
+\label{sec:exp4}
+
+Dos réplicas normales más una configurada al doble de ciclo, sobre la misma
+cola, 30 lotes: la lenta procesó \textbf{7} contra \textbf{11 y 12} de las
+normales. Un round-robin habría repartido 10/10/10 sin importar la velocidad.
+Nadie asignó ese reparto: emergió de que cada réplica reclama trabajo solo al
+quedar libre.
+
+\subsection{Experimento 5: saturación y recuperación automática}
+
+Ráfaga de 25 órdenes de golpe (envasado $\times$2), observando
+\texttt{/metricas/cuello} cada 15~s: a los 17~s la primera etapa pasa a
+\texttt{advertencia} y a los 32~s a \texttt{crítico} — \textbf{sola}. La
+congestión recorre la línea como una ola (fileteado $\to$ envasado $\to$
+esterilización) y a los \textbf{278~s} las cuatro etapas están de vuelta en
+\texttt{normal} \textbf{sin intervención alguna}: las esperas viejas salieron
+de la ventana móvil. Detalle en \texttt{experimentos/resultados/exp5-saturacion.txt}.
+
+La ráfaga deja además una lección de operación: con todo inyectado a la vez, el
+cuello detectado inicialmente es la \emph{primera} etapa (ahí se apila la
+cola), no la de mayor ciclo. El cuello depende del patrón de llegada, no solo
+de los tiempos de proceso — por eso el protocolo de los experimentos 1--3
+inyecta a ritmo constante.
+
+% =============================================================================
+\section{Manejo de errores}
+
+Códigos verificados contra el sistema corriendo: \texttt{201} (creación),
+\texttt{422} (cantidad $\leq 0$, producto vacío, filtro inválido — nunca 500),
+\texttt{404} (orden inexistente), \texttt{503} (dependencia caída, con mensaje
+en castellano). La UI nunca muestra un traceback: ante cualquier falla consulta
+la salud de los tres servicios y \textbf{nombra al que realmente falta} — si
+Redis cae, los demás siguen vivos y culpar al que responde lento enviaría a
+buscar el error al lugar equivocado.
+
+El hallazgo técnico de esta parte: con Redis detenido, los timeouts de socket
+del cliente \textbf{no bastan}, porque el cuelgue ocurre antes, en la
+resolución DNS (Docker elimina el nombre del contenedor detenido y
+\texttt{getaddrinfo} tarda $\sim$45~s en rendirse — medido). La solución fue un
+\textbf{plazo duro}: la consulta a Redis corre en un hilo aparte y se espera su
+resultado a lo más 2~s; si no llega, se responde \texttt{503} de inmediato.
+Resultado medido: \texttt{POST /ordenes} con Redis caído pasó de colgarse 46~s
+a responder \texttt{503} en \textbf{2{,}1~s}, y \texttt{/metricas} responde
+\texttt{200} en 2{,}0~s con \texttt{en\_cola: null} (un \texttt{null} honesto;
+un 0 sería mentira).
+
+Todos los servicios exponen \texttt{GET /salud} y tienen \texttt{healthcheck}
+en el compose. El healthcheck mide \emph{vida}, no dependencias: un servicio
+que responde 503 explicándose está sano — marcar \texttt{unhealthy} servicios
+vivos habría provocado reinicios en cascada de contenedores que no tienen nada
+malo.
+
+% =============================================================================
+\section{Reproducibilidad y despliegue}
+
+\begin{lstlisting}
+git clone <repositorio> && cd <carpeta>
+docker compose up -d --build
+# tablero en http://localhost:8501
+\end{lstlisting}
+
+Sin pasos manuales, sin instalar nada más que Docker. La prueba se ejecutó
+de verdad: clon en carpeta vacía $\to$ 8/8 contenedores \texttt{healthy} $\to$
+orden creada por API recorre las cuatro etapas hasta \texttt{terminada} $\to$
+tablero arriba. Toda la configuración tiene defaults funcionales
+(\texttt{.env.example} documenta cada variable; no es obligatorio crearlo).
+El README cubre instalación, uso, configuración, experimentos y diagnóstico de
+fallas comunes.
+
+% =============================================================================
+\section{Resiliencia: cómo se abordaría}
+\label{sec:resiliencia}
+
+El enunciado no exige tolerancia a fallos y este proyecto, deliberadamente,
+\textbf{detecta y explica} las fallas en vez de enmascararlas (sin reintentos,
+sin circuit breaker). Si se necesitara operar esto en producción, la
+arquitectura ya deja los puntos de corte correctos:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Estaciones (nodo B):} ya son resilientes en lo esencial — sin
+        estado propio, reconectan solas (bucle de reintento del worker) y
+        pueden multiplicarse o morir sin corromper nada. Lo único pendiente
+        sería re-encolar el lote en curso si una réplica muere a mitad de
+        ciclo (hoy ese lote se pierde de la cola; el patrón estándar es
+        \texttt{BLMOVE} a una cola ``en proceso'' por réplica, devuelta a la
+        cola principal por un barrendero al detectar un latido vencido).
+  \item \textbf{Redis (nodo C):} es el punto único de falla del reparto. El
+        camino estándar es Redis Sentinel (réplica + failover automático) o un
+        broker con confirmaciones (el bonus Kafka apuntaba ahí): con
+        \emph{acks}, un mensaje no confirmado vuelve a entregarse solo.
+  \item \textbf{SQLite (nodo C):} suficiente para un nodo; con más escritores
+        o failover se migraría a MySQL/PostgreSQL gestionado, cambiando solo
+        el módulo \texttt{bd.py} de cada servicio.
+  \item \textbf{APIs y UI (nodo A):} sin estado; con dos instancias y un
+        balanceador HTTP delante quedarían en alta disponibilidad. Los
+        healthchecks ya existentes son el insumo de ese balanceador.
+\end{itemize}
+
+La división en nodos de §\ref{sec:nodos} es exactamente la que hace estos
+upgrades locales: cada mejora toca un nodo sin rediseñar los demás.
+
+% =============================================================================
+\section{Análisis crítico de dificultades}
+\label{sec:dificultades}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{El entorno costó más que el primer código.} La virtualización
+        venía deshabilitada en BIOS (\texttt{SVM Mode}); \texttt{wsl --install}
+        no instaló ninguna distribución (hubo que pedir Ubuntu aparte); y
+        Docker Desktop caía en cascada por sockets huérfanos de un arranque
+        fallido que Windows no podía borrar, sembrando cada caída el bloqueo
+        de la siguiente. Lección: el ``hola mundo'' de infraestructura es
+        parte del proyecto y hay que presupuestarlo.
+  \item \textbf{La condición de carrera hubo que fabricarla para verla.} Con
+        el reclamo ingenuo, la ventana entre mirar y sacar es de
+        microsegundos: sin duplicados no hay demostración. Se ensanchó con una
+        espera artificial configurable (\texttt{DEMORA\_INGENUA}) hasta
+        reproducir duplicados de forma confiable, y ambas versiones quedaron
+        commiteadas — entender el problema antes de resolverlo.
+  \item \textbf{``Le puse timeout'' no es verificable hasta medir el camino
+        completo de la falla.} El cuelgue con Redis caído no estaba en el
+        socket sino en el DNS (46~s medidos), que el timeout configurado no
+        cubría. Hubo que aislar la falla por capas (resolución $\to$ conexión
+        $\to$ lectura) y acotar la operación completa con un plazo duro.
+  \item \textbf{Al acelerar una simulación se puede medir otra cosa.} El
+        experimento de la réplica lenta con ciclos de $\sim$1~s dio un reparto
+        casi parejo (21/20/19): a ese ritmo, el costo por lote lo dominaba la
+        escritura de eventos en SQLite (seis procesos compitiendo por el lock
+        sobre el volumen), no el ciclo simulado. Con ciclos de 6/12~s el
+        overhead se vuelve despreciable y el resultado es el esperado
+        (11/12/7). El overhead constante no escala con la simulación.
+  \item \textbf{El cuello de botella depende del patrón de llegada.} Inyectar
+        lotes de golpe apila todo en la primera cola y el sistema señala
+        —correctamente— a fileteado. Entender que eso no era un bug sino una
+        propiedad de las colas cambió el protocolo experimental y el guion de
+        la demo: ritmo constante para responder ``¿qué etapa limita la
+        producción?''.
+\end{enumerate}
+
+% =============================================================================
+\section{Supuestos declarados}
+\label{sec:supuestos}
+
+\begin{enumerate}[leftmargin=*]
+  \item Los tiempos de ciclo (4/12/3/7~s) son inventados, elegidos para que el
+        desplazamiento del cuello sea demostrable en una demo corta. No
+        representan una planta real; el escenario es ficticio.
+  \item ``Procesar un lote'' se simula esperando el tiempo de ciclo; no hay
+        trabajo real.
+  \item Un lote representa una cantidad de latas del mismo formato; no se
+        modelan latas individuales.
+  \item El enunciado no fija qué persistir: decidimos órdenes y eventos, con
+        las métricas siempre derivadas.
+  \item El enunciado no define el criterio de cuello de botella ni umbrales:
+        el criterio de §\ref{sec:criterio} es decisión nuestra.
+\end{enumerate}
+
+% =============================================================================
+\section{Conclusiones}
+
+El sistema cumple los requisitos del caso de punta a punta y sus afirmaciones
+están respaldadas por mediciones reproducibles: el reparto por demanda
+balancea sin conocer las réplicas (11/12/7 con una réplica lenta), la
+extracción atómica elimina la condición de carrera (0 duplicados en 200
+órdenes, contra duplicados reproducibles de la versión ingenua), el criterio de
+espera en ventana móvil detecta el cuello de botella correcto incluso cuando no
+es la etapa más lenta, y se recupera solo al bajar la carga. El resultado
+central — el cuello se desplaza de envasado a esterilización al escalar de 1 a
+2 réplicas, y una tercera ya no compra casi nada — es la demostración empírica
+de que en una línea en serie \emph{el cuello de botella no se elimina: se
+muda}, y de que medir espera (no servicio) es lo que permite verlo en vivo.
+
+% =============================================================================
+\appendix
+\section*{Anexos (seleccionar hasta 15 páginas)}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{A.} Contratos completos de las APIs (\texttt{docs/diseno.md} §1).
+  \item \textbf{B.} Esquema SQL y momentos de escritura de eventos (\texttt{docs/diseno.md} §2).
+  \item \textbf{C.} Capturas del tablero: línea normal, advertencia, crítico, Redis caído.
+  \item \textbf{D.} Salidas crudas de los experimentos (\texttt{experimentos/resultados/}).
+  \item \textbf{E.} Historial de commits (dos integrantes, repartidos en el tiempo).
+  \item \textbf{F.} Bitácoras por fase (\texttt{docs/fases/}), incluida la reproducción
+        de la condición de carrera.
+\end{itemize}
+
+\end{document}
