@@ -1,0 +1,1 @@
+{"cuello":"envasado","estados":{"fileteado":"normal","envasado":"critico","sellado":"normal","esterilizacion":"normal"},"razon":"espera promedio 67.78 s en la ventana de 60 s, sobre el umbral crítico (12 s de ciclo × 3)","ventana_s":60.0}

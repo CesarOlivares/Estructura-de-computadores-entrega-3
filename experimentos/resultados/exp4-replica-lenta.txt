@@ -1,0 +1,5 @@
+envasado-88d690e0069d	11
+envasado-b3573cf68ffd	12
+envasado-lento-8550b032c252	7
+ciclos: envasado=6s lento=12s, N=30 ordenes directas a cola:envasado
+esperado round-robin: 10/10/10 — esperado por demanda: ~12/12/6
