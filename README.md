@@ -113,7 +113,8 @@ La pantalla se actualiza sola cada 2 segundos y muestra:
 
 Todos los parámetros tienen valores por defecto que funcionan, así que **no hay que
 crear ningún archivo para levantar el sistema**. Se cambian solo para experimentar,
-anteponiéndolos al comando o poniéndolos en un archivo `.env` en la raíz.
+anteponiéndolos al comando o poniéndolos en un archivo `.env` en la raíz
+(hay un `.env.example` con todos los valores documentados: `cp .env.example .env`).
 
 | Variable | Defecto | Qué controla |
 |---|---|---|
@@ -124,6 +125,7 @@ anteponiéndolos al comando o poniéndolos en un archivo `.env` en la raíz.
 | `CICLO_ENVASADO_LENTO` | `24` | Ciclo de la réplica lenta (perfil `experimento`) |
 | `VENTANA_S` | `60` | Ventana móvil sobre la que se promedian las esperas |
 | `MODO_RECLAMO` | `atomico` | `atomico` (correcto) o `ingenuo` (reproduce la condición de carrera) |
+| `PLAZO_REDIS_S` | `2` | Segundos que un servicio espera a Redis antes de darlo por caído (503 en órdenes) |
 
 Ejemplo, acelerando la línea diez veces para una prueba rápida:
 
