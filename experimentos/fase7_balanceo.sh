@@ -15,7 +15,7 @@ N=${1:-60}
 cd "$(dirname "$0")/.."
 
 echo "== limpiando colas y contadores =="
-docker compose exec -T redis redis-cli DEL cola:envasado cola:sellado conteo:procesadas conteo:replica > /dev/null
+docker compose exec -T redis redis-cli DEL cola:envasado cola:sellado conteo:procesadas:envasado conteo:replica > /dev/null
 
 echo "== encolando $N ordenes en cola:envasado =="
 docker compose exec -T redis sh -c "for i in \$(seq 1 $N); do redis-cli LPUSH cola:envasado \$i > /dev/null; done"

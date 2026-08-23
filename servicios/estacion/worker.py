@@ -189,7 +189,16 @@ def bucle_worker() -> None:
             estado_local["ocupada"] = False
             # Conteos en Redis para los experimentos: cuántas veces se procesó
             # cada orden (detector de duplicados) y cuánto procesó cada réplica.
-            r.hincrby("conteo:procesadas", orden_id, 1)
+            #
+            # El detector de duplicados va POR ETAPA. Con un hash único para
+            # toda la línea, el mismo orden_id lo incrementarían las cuatro
+            # estaciones a medida que el lote avanza, y el avance normal de un
+            # lote se leería como si lo hubieran procesado cuatro veces. Lo que
+            # se quiere detectar es que DOS RÉPLICAS DE LA MISMA ETAPA tomaron
+            # el mismo lote; comparar entre etapas no significa nada.
+            r.hincrby(f"conteo:procesadas:{NOMBRE_ETAPA}", orden_id, 1)
+            # Este sí es global: la clave ya lleva la etapa dentro del
+            # replica_id, así que no hay ambigüedad que resolver.
             r.hincrby("conteo:replica", REPLICA_ID, 1)
             publicar_estado()
             log(f"orden {orden_id} terminada ({estado_local['procesadas']} en total)")

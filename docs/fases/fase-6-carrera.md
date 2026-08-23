@@ -71,3 +71,52 @@ en 200": ambas se cumplen con margen.
 
 **Fase 7 — balanceo dinámico**: N réplicas con identidad expuesta
 (`GET /estado`) y una réplica lenta que debe procesar visiblemente menos.
+
+---
+
+## Corrección posterior (23/08/2026, durante la Fase 16)
+
+Al verificar el script después de mover las funciones de reclamo a
+`servicios/comun/reclamo.py`, el modo **atómico** empezó a reportar duplicados
+(3 en una corrida de 60, y creciendo si se volvía a mirar el hash unos segundos
+después). El reclamo atómico no estaba fallando: **el que estaba mal era el
+contador**.
+
+`conteo:procesadas` era un hash único para toda la línea, y las cuatro
+estaciones lo incrementaban con el mismo `orden_id`. Un lote que avanza
+normalmente de envasado a sellado y de ahí a esterilización quedaba registrado
+como "procesado 3 veces". El script leía eso como duplicación.
+
+El defecto es anterior a la Fase 16 y estaba en el código desde la Fase 6; no
+apareció en la medición original porque con 200 órdenes y el margen de `sleep 3`
+casi ningún lote alcanzaba a salir de sellado antes de que el script leyera el
+hash. Es decir: **el resultado documentado arriba era correcto por suerte**, y
+la misma corrida repetida un minuto después habría dado otro número.
+
+Qué se cambió:
+
+- `worker.py` incrementa ahora `conteo:procesadas:<etapa>`. Lo que se quiere
+  detectar es que dos réplicas de LA MISMA etapa tomaron el mismo lote;
+  comparar entre etapas no significa nada.
+- `fase6_carrera.sh` lee ese hash, vacía las cinco colas de la línea antes de
+  medir (no solo dos: los lotes de una corrida anterior seguían circulando
+  durante la medición siguiente) y filtra el reparto a las réplicas de
+  envasado.
+
+Medición repetida con el contador corregido (23/08/2026, 3 réplicas, 60
+órdenes, ciclo 0,05 s):
+
+| Métrica | Reclamo ingenuo | Reclamo atómico |
+|---|---|---|
+| Órdenes distintas procesadas | 60/60 | 60/60 |
+| **Procesamientos totales** | **177** | **60** |
+| **Órdenes duplicadas** | **60 (todas)** | **0** |
+| Órdenes perdidas | 0 | 0 |
+| Reparto entre réplicas | 59/59/59 | 20/20/20 |
+
+Las mismas proporciones que la medición original (3× el trabajo con el reclamo
+ingenuo, exactamente uno por orden con el atómico), ahora sin depender de
+cuándo se lea el contador. **Lección para el informe:** un experimento puede dar
+el resultado correcto por el motivo equivocado, y solo se descubre al repetirlo
+en condiciones distintas. La instrumentación necesita tanta revisión como el
+código que mide.
