@@ -1,0 +1,21 @@
+# Finales de línea fijados en el repositorio, en vez de dejarlos al criterio de
+# la máquina que clone.
+#
+# Git para Windows trae core.autocrlf=true, así que un `git clone` en Windows
+# convertía TODO a CRLF — incluidos los scripts de experimentos. El shebang
+# quedaba como "#!/usr/bin/env bash\r" y al correrlos desde WSL, que es lo que
+# el README recomienda, fallaban con:
+#
+#     env: $'bash\r': No such file or directory
+#
+# Los .bat necesitan lo contrario: CRLF, que es lo que espera cmd.exe.
+
+* text=auto
+
+*.sh  text eol=lf
+*.bat text eol=crlf
+
+# Binarios: que git no intente convertir nada dentro de ellos.
+*.png  binary
+*.pdf  binary
+*.xlsx binary
