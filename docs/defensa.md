@@ -44,14 +44,31 @@
 
 ## Guion de la demo en vivo (lámina 8)
 
-1. `docker compose up -d --scale envasado=2` ya corriendo ANTES de empezar.
+1. `docker compose up -d --scale envasado=2` ya corriendo ANTES de empezar
+   (o `INICIAR.bat`, que hace lo mismo y abre el navegador solo).
 2. Tablero en 8501: línea al día, 5 réplicas visibles con su ciclo.
 3. Ingresar lotes **espaciados ~5 s** desde la UI (⚠️ no de golpe: si se
    inyecta todo junto, el cuello sale en fileteado — correcto, pero es la
    respuesta a otra pregunta; explicarlo si alguien pregunta).
 4. Ver crecer la espera de esterilización en el gráfico → cartel ámbar → rojo.
-5. `docker compose stop redis` → la UI explica y nombra a Redis; volver a
+5. **La condición de carrera, al final del tablero**: bajar a «Por qué la línea
+   no produce el mismo lote dos veces», leer las dos tarjetas de pasos (dos
+   operaciones contra una) y apretar **«Ejecutar la comparación»**. En ~7 s
+   quedan los dos paneles lado a lado: 300 lotes envasados contra 100 pedidos
+   por un lado, 100 contra 100 por el otro.
+   - Decir en voz alta que es **el mismo código** que corre en las estaciones
+     (`servicios/comun/reclamo.py`, importado por las dos partes) y que la
+     prueba usa una cola aparte, así que la línea de arriba sigue produciendo.
+   - Si preguntan por qué hilos y no contenedores: porque lo que la carrera
+     necesita es concurrencia sobre la misma cola, no procesos separados —
+     y la proporción de duplicados es la misma que midió la Fase 6 con
+     contenedores reales.
+6. `docker compose stop redis` → la UI explica y nombra a Redis; volver a
    levantar → todo sigue. (Plan B si algo falla: capturas en anexos.)
+
+> El botón del punto 5 reemplaza al plan B que teníamos para la carrera: ya no
+> hace falta reiniciar la línea en modo `ingenuo` ni correr el script de bash
+> delante de la comisión.
 
 ## Preguntas que podrían hacernos
 

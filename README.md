@@ -22,6 +22,19 @@ que el reparto se adapta solo a la velocidad de cada una.
 
 ---
 
+## Cómo obtenerlo
+
+Repositorio: **https://github.com/CesarOlivares/Estructura-de-computadores-entrega-3**
+
+```bash
+git clone https://github.com/CesarOlivares/Estructura-de-computadores-entrega-3.git
+```
+
+O, sin git: botón verde **Code → Download ZIP**, y descomprimir. Después,
+doble clic en `INICIAR.bat` dentro de la carpeta.
+
+---
+
 ## Requisitos previos
 
 Lo único que hay que tener instalado:
@@ -41,6 +54,19 @@ contenedores.
 ---
 
 ## Ejecución
+
+### En Windows: doble clic en **`INICIAR.bat`**
+
+Eso es todo. El script comprueba Docker, abre Docker Desktop si el motor está
+apagado, construye las imágenes, espera a que el tablero responda y abre el
+navegador solo. Si algo falla, la ventana queda abierta explicando qué pasó.
+
+Para detener, doble clic en **`DETENER.bat`** (pregunta si conservar o borrar
+los datos).
+
+En macOS o Linux el equivalente es `./iniciar.sh`.
+
+### A mano
 
 Desde la raíz del repositorio, **un solo comando**:
 
@@ -109,6 +135,43 @@ La pantalla se actualiza sola cada 2 segundos y muestra:
 
 ---
 
+## La demostración de la condición de carrera
+
+Al final del tablero, después del separador, hay una sección aparte:
+**«Por qué la línea no produce el mismo lote dos veces»**. Es la respuesta
+ejecutable al problema central del Caso 2.
+
+Explica el problema en dos tarjetas enfrentadas —el reclamo en dos pasos
+(`LRANGE` + `LREM`) contra el atómico (`BRPOP`)— y trae un botón,
+**«Ejecutar la comparación»**, que corre el experimento en vivo: encola la
+misma cantidad de lotes dos veces, una con cada modo, y grafica los dos
+resultados lado a lado en la misma escala.
+
+Con 100 lotes y 3 máquinas, el resultado típico es:
+
+| | Reclamo en dos pasos | Reclamo atómico |
+|---|---|---|
+| Lotes envasados | **300** | **100** |
+| Lotes duplicados | **100** (todos, hasta 3 veces) | **0** |
+| Lotes perdidos | 0 | 0 |
+
+Tres detalles que hacen que la demostración pruebe algo:
+
+- **Es el mismo código.** Las dos funciones comparadas se importan de
+  `servicios/comun/reclamo.py`, el módulo que también importa
+  `servicios/estacion/worker.py` para trabajar de verdad. No hay una copia
+  para la demo que pueda quedar desincronizada.
+- **Es el Redis real**, con hilos concurrentes compitiendo por una cola real.
+  Si el reclamo atómico fallara, ahí se vería: el color de las tarjetas sale
+  del resultado medido, no del modo.
+- **No toca la línea.** Usa claves `demo:carrera:<id>` propias de cada corrida,
+  que se borran al terminar. Se puede ejecutar con lotes circulando.
+
+La versión con contenedores reales en vez de hilos es
+`experimentos/fase6_carrera.sh`, y da el mismo resultado.
+
+---
+
 ## Configuración
 
 Todos los parámetros tienen valores por defecto que funcionan, así que **no hay que
@@ -167,6 +230,11 @@ scripts de bash: en Windows se ejecutan desde **WSL** o **Git Bash**.
 Demuestra que reclamar una orden en dos operaciones separadas permite que dos
 réplicas tomen el mismo lote, y que hacerlo en una sola operación atómica lo impide.
 
+Esta es la versión con **contenedores reales**: levanta tres réplicas de
+envasado en cada modo y las hace competir. Es más lenta y exige reiniciar la
+línea entre corridas; la versión de un clic, sin reiniciar nada, es el botón
+del tablero (ver arriba).
+
 ```bash
 # Versión rota, a propósito: se esperan duplicados
 MODO_RECLAMO=ingenuo CICLO_ENVASADO=0.05 docker compose up -d --scale envasado=3
@@ -196,7 +264,11 @@ round-robin les habría repartido la misma cantidad a las tres.
 ## Estructura del repositorio
 
 ```
+INICIAR.bat    arranque de un clic en Windows (DETENER.bat lo detiene)
+iniciar.sh     lo mismo para macOS y Linux
 servicios/
+  comun/       las dos formas de reclamar trabajo, compartidas por
+               las estaciones y por la demostración del tablero
   ordenes/     orders-api — crea y consulta órdenes (puerto 8000)
   estacion/    una imagen desplegada 4 veces, una por etapa
   metricas/    metrics-api — espera, servicio, lead time y cuello (puerto 8001)
@@ -207,6 +279,12 @@ docs/
 demo/          prototipo desechable de cola + workers (Fase 1)
 experimentos/  scripts de los experimentos de las fases 6 y 7
 ```
+
+`servicios/comun/` es el único código compartido entre servicios, y lo es por
+un motivo concreto: si el tablero tuviera su propia copia de las funciones de
+reclamo, su demostración probaría esa copia y no lo que corre en la planta.
+Por eso las imágenes de `estacion` y `ui` se construyen con `servicios/` como
+contexto y no con su propia carpeta.
 
 ### Arquitectura
 
@@ -236,7 +314,7 @@ Guardar el mismo dato dos veces es la forma más fácil de que se contradigan.
 
 | Síntoma | Qué revisar |
 |---|---|
-| `docker: error during connect` | Docker Desktop no está corriendo. Ábrelo y espera a que diga `Engine running`. |
+| `docker: error during connect` | Docker Desktop no está corriendo. Ábrelo y espera a que diga `Engine running` — o usa `INICIAR.bat`, que lo abre y lo espera solo. |
 | El tablero dice que no puede mostrar los datos | Revisa `docker compose ps`. El propio mensaje indica qué servicio falta. |
 | Puerto ya en uso (`port is already allocated`) | Algo más ocupa el 8000, 8001, 6379 u 8501. Ciérralo o cambia el puerto en `docker-compose.yml`. |
 | El tablero está vacío y todo en cero | No hay lotes. Ingresa algunos desde el panel izquierdo. |
