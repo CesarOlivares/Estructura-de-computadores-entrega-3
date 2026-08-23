@@ -132,6 +132,35 @@ CSS = f"""
   .leyenda {{ display: flex; gap: 20px; flex-wrap: wrap; margin: 12px 0 4px;
               font: 400 12px/1.5 {TIPOGRAFIA}; color: {TINTA_MUDA}; }}
   .leyenda b {{ color: {TINTA_2}; font-weight: 600; }}
+
+  /* --- Seccion de demostracion ------------------------------------------
+     Aqui SI se pinta el resultado de color, y no contradice la regla del
+     tablero: un veredicto no es una medicion de la operacion, es la conclusion
+     del experimento. Que una de las dos tarjetas sea roja y la otra verde es
+     exactamente lo que hay que leer. */
+  .veredicto {{
+      background: {SUPERFICIE}; border: 1px solid; border-left-width: 4px;
+      border-radius: 10px; padding: 14px 17px 15px; height: 100%;
+  }}
+  .veredicto-modo {{ font: 600 11px/1.4 {TIPOGRAFIA}; letter-spacing: .06em;
+                     text-transform: uppercase; }}
+  .veredicto-valor {{ font: 600 30px/1.1 {TIPOGRAFIA}; color: {TINTA}; margin-top: 7px; }}
+  .veredicto-unidad {{ font-size: 15px; font-weight: 500; color: {TINTA_2}; margin-left: 4px; }}
+  .veredicto-detalle {{ font: 400 13px/1.45 {TIPOGRAFIA}; color: {TINTA_2}; margin-top: 6px; }}
+
+  /* Los dos reclamos enfrentados, paso por paso. */
+  .pasos {{ background: {SUPERFICIE}; border: 1px solid {BORDE}; border-radius: 10px;
+            padding: 13px 16px 15px; height: 100%; }}
+  .pasos-titulo {{ font: 600 14px/1.3 {TIPOGRAFIA}; color: {TINTA}; }}
+  .pasos-lista {{ margin: 9px 0 0; padding: 0; list-style: none;
+                  font: 400 13px/1.5 {TIPOGRAFIA}; color: {TINTA_2}; }}
+  .pasos-lista li {{ display: flex; gap: 8px; padding: 2px 0; }}
+  .pasos-n {{ flex: 0 0 17px; font-weight: 600; color: {TINTA_MUDA};
+              font-variant-numeric: tabular-nums; }}
+  .pasos-lista code {{ background: {PLANO}; border: 1px solid {REJILLA};
+                       border-radius: 4px; padding: 0 4px; font-size: 12px; }}
+  .pasos-nota {{ font: 400 12px/1.45 {TIPOGRAFIA}; margin-top: 10px;
+                 padding-top: 9px; border-top: 1px solid {REJILLA}; }}
 </style>
 """
 
@@ -253,3 +282,37 @@ def leyenda():
         '<span>El número de cada réplica es <b>cuántos lotes lleva hechos</b></span>'
         '<span>Una <b>réplica</b> es una máquina más trabajando en paralelo</span>'
         '</div>')
+
+
+# --- Componentes de la seccion de demostracion -----------------------------
+
+def veredicto(malo, modo, valor, unidad, detalle):
+    """Tarjeta con el resultado de un modo de reclamo.
+
+    `malo` decide el color: rojo si el modo produjo trabajo duplicado, verde si
+    no. Es el unico lugar del tablero donde el verde significa "correcto" en
+    vez de "en marcha", porque es el unico que emite un juicio.
+    """
+    color = COLOR_ESTADO["critico"] if malo else VERDE_OK
+    icono = "■" if malo else "✓"
+    u = f'<span class="veredicto-unidad">{unidad}</span>' if unidad else ""
+    return (f'<div class="veredicto" style="border-color:{BORDE}; '
+            f'border-left-color:{color}; background:{color}0a">'
+            f'<div class="veredicto-modo" style="color:{color}">{icono} {modo}</div>'
+            f'<div class="veredicto-valor">{valor}{u}</div>'
+            f'<div class="veredicto-detalle">{detalle}</div></div>')
+
+
+def pasos(titulo, lista, nota, malo):
+    """Los pasos de un modo de reclamo, numerados, con la conclusion abajo.
+
+    Enfrentar las dos listas hace visible de un vistazo lo unico que importa:
+    una tiene dos pasos y la otra uno. La ventana del error no esta en ninguno
+    de los pasos, esta ENTRE ellos, y eso solo se ve si estan contados.
+    """
+    color = COLOR_ESTADO["critico"] if malo else VERDE_OK
+    filas = "".join(f'<li><span class="pasos-n">{i}.</span><span>{texto}</span></li>'
+                    for i, texto in enumerate(lista, start=1))
+    return (f'<div class="pasos"><div class="pasos-titulo">{titulo}</div>'
+            f'<ul class="pasos-lista">{filas}</ul>'
+            f'<div class="pasos-nota" style="color:{color}">{nota}</div></div>')
