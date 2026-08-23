@@ -36,8 +36,12 @@
   \providecommand{\robotocon}{\sffamily}
 \else
   \usepackage{fontspec}
-  \setmainfont{Libre Franklin}[UprightFont = *-Thin, BoldFont = *-Bold]
-  \newfontfamily\robotocon{Roboto Condensed}[UprightFont = *-Regular, BoldFont = *-Bold]
+  \IfFontExistsTF{Libre Franklin}
+    {\setmainfont{Libre Franklin}[UprightFont = *-Thin, BoldFont = *-Bold]}
+    {\IfFontExistsTF{Segoe UI}{\setmainfont{Segoe UI}}{}}
+  \IfFontExistsTF{Roboto Condensed}
+    {\newfontfamily\robotocon{Roboto Condensed}[UprightFont = *-Regular, BoldFont = *-Bold]}
+    {\IfFontExistsTF{Bahnschrift}{\newfontfamily\robotocon{Bahnschrift}}{\providecommand{\robotocon}{\sffamily}}}
 \fi
 
 \definecolor{usachteal}{RGB}{0,155,138}
@@ -144,12 +148,38 @@ Este informe presenta el diseño, implementación y evaluación experimental de 
 sistema distribuido que simula una \textbf{línea de producción con balanceo
 dinámico de carga} (Caso 2). El dominio elegido es una planta conservera
 \textbf{ficticia} de jurel en lata de 425~g, inspirada en la industria
-conservera nacional, con cuatro etapas en serie:
+conservera nacional, con cuatro etapas en serie separadas por \textbf{colas de
+trabajo}: cada cola es, literalmente, la fila de lotes que esperan frente a la
+etapa siguiente. Si una etapa procesa más lento de lo que le llega trabajo, su
+fila crece — y esa fila creciente es exactamente lo que este sistema mide y
+diagnostica en vivo.
 
-\begin{center}
-\texttt{cola} $\to$ FILETEADO $\to$ \texttt{cola} $\to$ \textbf{ENVASADO} $\to$
-\texttt{cola} $\to$ SELLADO $\to$ \texttt{cola} $\to$ ESTERILIZACIÓN $\to$ listos
-\end{center}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.35cm,
+  etapac/.style={rectangle, rounded corners, minimum width=2.15cm, minimum height=1.05cm,
+                 text centered, draw=usachdark, fill=usachdark!5, font=\scriptsize, align=center},
+  etaparc/.style={rectangle, rounded corners, minimum width=2.15cm, minimum height=1.05cm,
+                  text centered, draw=usachteal, fill=usachteal!15, font=\scriptsize\bfseries, align=center}]
+  \node (q1) [colaq] {cola};
+  \node (e1) [etapac, right=of q1] {\textbf{Fileteado}\\ ciclo 4 s};
+  \node (q2) [colaq, right=of e1] {cola};
+  \node (e2) [etaparc, right=of q2] {Envasado\\ ciclo 12 s\\ $\times$1--3 réplicas};
+  \node (q3) [colaq, right=of e2] {cola};
+  \node (e3) [etapac, right=of q3] {\textbf{Sellado}\\ ciclo 3 s};
+  \node (q4) [colaq, right=of e3] {cola};
+  \node (e4) [etapac, right=of q4] {\textbf{Esterilización}\\ ciclo 7 s};
+  \node (fin) [right=0.45cm of e4, font=\scriptsize\bfseries, text=usachteal] {listos};
+  \draw [arrow] (q1) -- (e1); \draw [arrow] (e1) -- (q2);
+  \draw [arrow] (q2) -- (e2); \draw [arrow] (e2) -- (q3);
+  \draw [arrow] (q3) -- (e3); \draw [arrow] (e3) -- (q4);
+  \draw [arrow] (q4) -- (e4); \draw [arrow] (e4) -- (fin);
+  \node [above=0.12cm of q1, font=\tiny, text=usachdark!70] {órdenes};
+\end{tikzpicture}
+\caption{La línea de producción: cuatro etapas en serie unidas por colas de
+trabajo. Envasado, la etapa más lenta, es la replicada.}
+\label{fig:pipeline}
+\end{figure}
 
 \begin{table}[H]
 \centering
@@ -230,7 +260,8 @@ hermanas tiene ni necesita saberlo.
 \end{figure}
 
 La agrupación no es arbitraria: cada nodo reúne responsabilidades que
-\textbf{cambian de escala por motivos distintos}. El nodo B es el único que se
+\textbf{cambian de escala por motivos distintos}, el criterio clásico para
+particionar un sistema distribuido \cite{tanenbaum}. El nodo B es el único que se
 replica bajo carga (agregar capacidad de procesamiento = agregar contenedores
 ahí). El nodo C concentra el estado compartido, que por ser compartido
 \emph{no puede} duplicarse sin coordinación adicional. El nodo A expone el
@@ -265,7 +296,9 @@ La última etapa marca la orden como \texttt{terminada}.
 El enunciado sugiere ``réplicas detrás de un balanceador''. Decidimos —y es una
 \textbf{decisión nuestra que defendemos aquí}— implementar el balanceo como
 \textbf{cola de trabajo compartida}: las réplicas \emph{piden} un lote cuando
-quedan libres, en vez de recibirlo asignado por una pieza intermedia.
+quedan libres, en vez de recibirlo asignado por una pieza intermedia — el
+patrón de consumidores en competencia sobre un broker de mensajes
+\cite{kleppmann}.
 
 \begin{enumerate}[leftmargin=*]
   \item Es lo único que produce balanceo \textbf{dinámico} real. Un
@@ -301,10 +334,42 @@ dos operaciones: mirar la cola (\texttt{LRANGE}) y después sacar el elemento
 teórico.
 
 \textbf{Versión atómica.} \texttt{BRPOP}: extracción bloqueante en \textbf{una
-sola operación indivisible}. Redis, al ser monohilo en la atención de
-comandos, garantiza que cada elemento se entrega a exactamente una réplica
+sola operación indivisible} \cite{redis}. Redis, al ser monohilo en la atención
+de comandos, garantiza que cada elemento se entrega a exactamente una réplica
 aunque haya varias esperando sobre la misma cola. Mismo experimento:
 \textbf{0 duplicados en 200 órdenes}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  rep/.style={rectangle, rounded corners, draw=usachdark, fill=usachdark!5, font=\scriptsize, minimum width=1.7cm, minimum height=0.55cm},
+  msg/.style={font=\tiny, midway, above, sloped},
+  cola/.style={rectangle, draw=usachdark!60, fill=orange!10, font=\scriptsize\bfseries, minimum width=1.9cm, minimum height=0.55cm},
+  mal/.style={font=\scriptsize\bfseries, text=red!70!black},
+  bien/.style={font=\scriptsize\bfseries, text=usachteal}]
+  % Panel izquierdo: ingenua
+  \node (tit1) [font=\scriptsize\bfseries, text=usachdark] at (0,2.1) {Versión ingenua: mirar y sacar (2 pasos)};
+  \node (colaA) [cola] at (0,1.3) {cola: lote \#42};
+  \node (r1a) [rep] at (-1.6,-0.2) {réplica 1};
+  \node (r2a) [rep] at (1.6,-0.2) {réplica 2};
+  \draw [arrow] (colaA.south west) -- (r1a.north) node[msg] {ve \#42};
+  \draw [arrow] (colaA.south east) -- (r2a.north) node[msg] {ve \#42};
+  \node (dup) [mal] at (0,-1.05) {ambas procesan \#42: duplicado};
+  % Panel derecho: atómica
+  \node (tit2) [font=\scriptsize\bfseries, text=usachdark] at (7.6,2.1) {Versión atómica: \texttt{BRPOP} (1 paso)};
+  \node (colaB) [cola] at (7.6,1.3) {cola: \#42, \#43};
+  \node (r1b) [rep] at (6.0,-0.2) {réplica 1};
+  \node (r2b) [rep] at (9.2,-0.2) {réplica 2};
+  \draw [arrow] (colaB.south west) -- (r1b.north) node[msg] {recibe \#42};
+  \draw [arrow] (colaB.south east) -- (r2b.north) node[msg] {recibe \#43};
+  \node (ok) [bien] at (7.6,-1.05) {cada lote a exactamente una réplica};
+\end{tikzpicture}
+\caption{La condición de carrera y su solución. A la izquierda, entre
+``mirar'' y ``sacar'' hay una ventana en la que dos réplicas ven el mismo
+lote; a la derecha, la extracción es una única operación indivisible y la
+ventana no existe.}
+\label{fig:carrera}
+\end{figure}
 
 Se prefirió la operación atómica de cola por sobre un lock/contador distribuido
 (la alternativa que el enunciado menciona como ejemplo) porque elimina la
@@ -333,9 +398,24 @@ Con los eventos de cada orden se definen, por etapa:
 
 Un tiempo de \emph{servicio} alto solo dice que la tarea es larga; el atasco es
 trabajo llegando más rápido de lo que la etapa lo drena, y eso se manifiesta en
-la \emph{espera}. El experimento 2 lo ilustra: la etapa señalada como cuello
-(esterilización, ciclo 7~s) tiene un ciclo \textbf{más corto} que envasado
-(12~s) — un criterio por tiempo de servicio jamás la habría encontrado.
+la \emph{espera} — la misma relación entre llegadas, capacidad y fila que
+formaliza la ley de Little \cite{little} y que la teoría de las restricciones
+usa para localizar la limitante de un proceso \cite{goldratt}. La analogía
+cotidiana: en un supermercado, que un cajero sea lento no significa que haya
+atasco; el atasco es la \emph{fila} que crece frente a su caja. El experimento
+2 lo ilustra con datos (Figura \ref{fig:espera_vs_servicio}): la etapa señalada
+como cuello (esterilización, ciclo 7~s) tiene un ciclo \textbf{más corto} que
+envasado (12~s) — un criterio por tiempo de servicio jamás la habría
+encontrado.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{figuras/fig_espera_vs_servicio.pdf}
+\caption{Servicio contra espera por etapa con 2 réplicas de envasado
+(experimento 2). Envasado tiene el ciclo más largo, pero la fila que crece —
+el cuello real — está en esterilización. Por eso el detector mide espera.}
+\label{fig:espera_vs_servicio}
+\end{figure}
 
 Los estados por etapa usan umbrales \textbf{relativos al ciclo de cada etapa}
 (10~s de espera son graves para sellado, ciclo 3~s, y poca cosa para envasado,
@@ -355,8 +435,9 @@ Una orden completa genera 12 eventos (3 por etapa). Espera, servicio y lead
 time \textbf{no se almacenan}: se calculan siempre desde \texttt{eventos} — el
 dato guardado dos veces es el dato que se contradice. La base sobrevive a
 \texttt{docker compose down} (verificado); \texttt{down -v} la borra a
-propósito. Varios contenedores escriben la misma base: se usa WAL,
-\texttt{busy\_timeout} y una conexión por operación.
+propósito. Varios contenedores escriben la misma base: se usa el modo WAL
+(\emph{write-ahead logging}) de SQLite \cite{sqlite}, \texttt{busy\_timeout}
+y una conexión por operación.
 
 \subsection{Interfaz de operación}
 
@@ -381,10 +462,22 @@ en gris y el color fuerte queda reservado para advertencia (ámbar) y crítico
 
 Protocolo (experimentos 1--3): estado limpio, inyección de 1 orden cada 5~s
 durante 180~s vía \texttt{POST /ordenes}, medición al final con ventana de
-60~s. La llegada (0{,}20 lotes/s) supera la capacidad de envasado con una
-réplica (1/12 = 0{,}083) y la de esterilización (1/7 = 0{,}143), pero no la de
-fileteado (0{,}25) ni sellado (0{,}33). Datos crudos en
+60~s. La Figura \ref{fig:capacidad} muestra la aritmética del escenario: al
+ritmo de llegada (12 lotes/min) lo superan fileteado (15) y sellado (20), pero
+no envasado con una réplica (5) ni esterilización (8{,}6). Toda etapa cuya
+capacidad queda \emph{bajo} la línea de llegada acumula fila tarde o temprano
+— y con 2 réplicas envasado sube a 10 lotes/min: mejor, pero aún insuficiente,
+lo que anticipa los resultados. Datos crudos en
 \texttt{experimentos/resultados/}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.86\textwidth]{figuras/fig_capacidad.pdf}
+\caption{Capacidad de cada etapa (lotes/min) frente al ritmo de llegada del
+protocolo. Las etapas bajo la línea segmentada no alcanzan a drenar lo que
+les llega: ahí se forman las filas.}
+\label{fig:capacidad}
+\end{figure}
 
 \subsection{Experimentos 1--3: el cuello se desplaza al escalar}
 
@@ -410,12 +503,30 @@ fileteado (0{,}25) ni sellado (0{,}33). Datos crudos en
   \item \textbf{2 réplicas:} el reparto por demanda divide el trabajo (13/12
         lotes por réplica) y el tiempo efectivo de envasado baja a $\sim$6~s
         por lote. El cuello \textbf{se desplaza a esterilización} — la premisa
-        del caso, demostrada con datos. Lead time: $-21\,\%$.
+        del caso, demostrada con datos. Lead time: $-21$~\%.
   \item \textbf{3 réplicas:} envasado queda con capacidad sobrada (espera
         0{,}7~s), pero el lead time solo mejora otro 5~\%: el límite ya no
         está ahí. La inversión correcta siguiente sería una segunda autoclave,
         no una tercera envasadora.
 \end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{figuras/fig_espera_replicas.pdf}
+\caption{El resultado central, visto de una vez: la espera promedio por etapa
+según el número de réplicas de envasado. El cuello (barra roja) no desaparece
+al escalar: se desplaza de envasado a esterilización.}
+\label{fig:espera_replicas}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{figuras/fig_leadtime.pdf}
+\caption{Lead time promedio de una orden (creación $\to$ terminada). La
+segunda réplica compra un 21~\%; la tercera casi nada, porque el límite ya no
+está en envasado.}
+\label{fig:leadtime}
+\end{figure}
 
 Los tiempos de servicio medidos (4{,}6--5{,}0 / 12{,}2--13{,}0 / 3{,}3--3{,}5 /
 7{,}3~s) coinciden con los ciclos configurados (4/12/3/7~s), lo que valida la
@@ -426,19 +537,38 @@ instrumentación.
 
 Dos réplicas normales más una configurada al doble de ciclo, sobre la misma
 cola, 30 lotes: la lenta procesó \textbf{7} contra \textbf{11 y 12} de las
-normales. Un round-robin habría repartido 10/10/10 sin importar la velocidad.
-Nadie asignó ese reparto: emergió de que cada réplica reclama trabajo solo al
-quedar libre.
+normales (Figura \ref{fig:replica_lenta}). Un round-robin habría repartido
+10/10/10 sin importar la velocidad. Nadie asignó ese reparto: emergió de que
+cada réplica reclama trabajo solo al quedar libre.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{figuras/fig_replica_lenta.pdf}
+\caption{Balanceo dinámico con una réplica al doble de ciclo: el reparto se
+adapta solo a la capacidad real de cada una, sin configuración ni
+coordinación explícita.}
+\label{fig:replica_lenta}
+\end{figure}
 
 \subsection{Experimento 5: saturación y recuperación automática}
 
 Ráfaga de 25 órdenes de golpe (envasado $\times$2), observando
 \texttt{/metricas/cuello} cada 15~s: a los 17~s la primera etapa pasa a
 \texttt{advertencia} y a los 32~s a \texttt{crítico} — \textbf{sola}. La
-congestión recorre la línea como una ola (fileteado $\to$ envasado $\to$
-esterilización) y a los \textbf{278~s} las cuatro etapas están de vuelta en
-\texttt{normal} \textbf{sin intervención alguna}: las esperas viejas salieron
-de la ventana móvil. Detalle en \texttt{experimentos/resultados/exp5-saturacion.txt}.
+Figura \ref{fig:saturacion} muestra la película completa: la congestión
+recorre la línea como una ola (fileteado $\to$ envasado $\to$ esterilización)
+y a los \textbf{278~s} las cuatro etapas están de vuelta en \texttt{normal}
+\textbf{sin intervención alguna}: las esperas viejas salieron de la ventana
+móvil. Detalle en \texttt{experimentos/resultados/exp5-saturacion.txt}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{figuras/fig_saturacion.pdf}
+\caption{Experimento 5 como línea de tiempo de estados: cada fila es una
+etapa y cada celda una sonda de \texttt{/metricas/cuello}. La congestión
+avanza por la línea y el sistema vuelve a normal por sí solo.}
+\label{fig:saturacion}
+\end{figure}
 
 La ráfaga deja además una lección de operación: con todo inyectado a la vez, el
 cuello detectado inicialmente es la \emph{primera} etapa (ahí se apila la
@@ -483,7 +613,7 @@ docker compose up -d --build
 # tablero en http://localhost:8501
 \end{lstlisting}
 
-Sin pasos manuales, sin instalar nada más que Docker. La prueba se ejecutó
+Sin pasos manuales, sin instalar nada más que Docker \cite{docker}. La prueba se ejecutó
 de verdad: clon en carpeta vacía $\to$ 8/8 contenedores \texttt{healthy} $\to$
 orden creada por API recorre las cuatro etapas hasta \texttt{terminada} $\to$
 tablero arriba. Toda la configuración tiene defaults funcionales
@@ -592,7 +722,38 @@ es la etapa más lenta, y se recupera solo al bajar la carga. El resultado
 central — el cuello se desplaza de envasado a esterilización al escalar de 1 a
 2 réplicas, y una tercera ya no compra casi nada — es la demostración empírica
 de que en una línea en serie \emph{el cuello de botella no se elimina: se
-muda}, y de que medir espera (no servicio) es lo que permite verlo en vivo.
+muda} \cite{goldratt}, y de que medir espera (no servicio) es lo que permite
+verlo en vivo.
+
+% =============================================================================
+\begin{thebibliography}{9}
+
+\bibitem{tanenbaum} M.~van Steen y A.~S. Tanenbaum, \emph{Distributed
+Systems}, 4.ª ed. Maarten van Steen, 2023. Disponible en
+\url{https://www.distributed-systems.net}.
+
+\bibitem{kleppmann} M.~Kleppmann, \emph{Designing Data-Intensive
+Applications}. Sebastopol, CA: O'Reilly Media, 2017.
+
+\bibitem{goldratt} E.~M. Goldratt y J.~Cox, \emph{La Meta: un proceso de
+mejora continua}, 3.ª ed. Great Barrington, MA: North River Press, 2004.
+
+\bibitem{little} J.~D.~C. Little, ``A proof for the queuing formula
+$L = \lambda W$'', \emph{Operations Research}, vol.~9, n.º~3, pp.~383--387,
+1961.
+
+\bibitem{redis} Redis Ltd., ``BRPOP — Redis command reference'',
+documentación oficial de Redis 7, 2024. Disponible en
+\url{https://redis.io/docs/latest/commands/brpop/}.
+
+\bibitem{sqlite} SQLite Consortium, ``Write-Ahead Logging'', documentación
+oficial de SQLite, 2024. Disponible en \url{https://www.sqlite.org/wal.html}.
+
+\bibitem{docker} Docker Inc., ``Docker Compose overview'', documentación
+oficial de Docker, 2024. Disponible en
+\url{https://docs.docker.com/compose/}.
+
+\end{thebibliography}
 
 % =============================================================================
 \appendix
