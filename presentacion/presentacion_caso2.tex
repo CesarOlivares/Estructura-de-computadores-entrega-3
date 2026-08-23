@@ -1,0 +1,398 @@
+% =============================================================================
+% PRESENTACIÓN — Evaluación 3 ECSD · Caso 2: Línea de Producción con Balanceo Dinámico
+% Estilo: minimalista, secciones numeradas, tipografía DIN (Bahnschrift).
+% Compilar con XeLaTeX/Tectonic (usa fuentes del sistema Windows).
+% Las figuras se generan con informe/figuras/generar_figuras.py
+% =============================================================================
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage[spanish, es-tabla]{babel}
+\deactivatequoting
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, calc}
+
+\usepackage{fontspec}
+\IfFontExistsTF{Segoe UI}{\setsansfont{Segoe UI}}{}
+\IfFontExistsTF{Bahnschrift}{\newfontfamily\dinfont{Bahnschrift}}{\newcommand{\dinfont}{\sffamily}}
+
+% ── Colores (estilo deck Seguridad + acentos del proyecto) ───────────────────
+\definecolor{marino}{HTML}{1A2744}
+\definecolor{grisazul}{HTML}{4A5568}
+\definecolor{tealu}{HTML}{009B8A}
+\definecolor{ambar}{HTML}{E8A013}
+\definecolor{rojo}{HTML}{D03B3B}
+\definecolor{grisclaro}{HTML}{EDECE7}
+\definecolor{grisborde}{HTML}{C9C7C0}
+
+% ── Beamer minimalista ───────────────────────────────────────────────────────
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\textcolor{tealu}{\raisebox{0.12ex}{\scriptsize$\blacksquare$}}}
+\setbeamertemplate{itemize subitem}{\textcolor{grisazul}{--}}
+\setbeamercolor{normal text}{fg=marino}
+\setbeamercolor{itemize/enumerate body}{fg=marino}
+\setbeamerfont{normal text}{size=\small}
+\setbeamertemplate{frametitle}{}
+\setbeamertemplate{footline}{%
+  \hspace{1.2em}\raisebox{1.1em}{\tiny\color{grisazul}%
+  ECSD · Evaluación 3 — Caso 2 · César Olivares · Simón García-Huidobro}%
+  \hfill\raisebox{1.1em}{\tiny\color{grisazul}\insertframenumber\ /\ \inserttotalframenumber\hspace{1.2em}}}
+
+% Título de lámina: número grande + título en mayúsculas + subtítulo gris
+\newcommand{\titulo}[3]{%
+  \vspace{0.12cm}%
+  {\dinfont\Huge\color{grisborde}#1}\\[-0.9ex]
+  {\dinfont\LARGE\color{marino}\MakeUppercase{#2}}\\[0.3ex]
+  {\normalsize\color{grisazul}#3}\\[0.2ex]
+  {\color{tealu}\rule{2.2cm}{2pt}}\\[0.6ex]}
+
+% Tarjeta para conclusiones / bloques
+\newcommand{\tarjeta}[2]{%
+  \begin{beamercolorbox}[wd=\linewidth, sep=6pt, rounded=true]{tarjetabox}%
+  {\small\bfseries\color{marino}#1}\\[2pt]{\footnotesize\color{grisazul}#2}%
+  \end{beamercolorbox}}
+\setbeamercolor{tarjetabox}{bg=grisclaro}
+
+% Número gigante (indicador tipo "stat tile")
+\newcommand{\cifra}[2]{%
+  \begin{center}{\dinfont\fontsize{34}{36}\selectfont\color{tealu}#1}\\[2pt]
+  {\footnotesize\color{grisazul}#2}\end{center}}
+
+\tikzset{
+  etapac/.style={rectangle, rounded corners, minimum width=2.05cm, minimum height=1.0cm,
+                 text centered, draw=marino, fill=grisclaro, font=\scriptsize, align=center},
+  etaparc/.style={rectangle, rounded corners, minimum width=2.05cm, minimum height=1.0cm,
+                  text centered, draw=tealu, fill=tealu!15, font=\scriptsize\bfseries, align=center},
+  colaq/.style={rectangle, minimum width=0.95cm, minimum height=0.6cm, text centered,
+                draw=grisazul!60, fill=ambar!12, font=\tiny},
+  nodo/.style={rectangle, rounded corners, draw=tealu, fill=tealu!8, font=\scriptsize\bfseries, inner sep=7pt},
+  arrow/.style={thick,->,>=stealth,color=marino},
+  rep/.style={rectangle, rounded corners, draw=marino, fill=grisclaro, font=\scriptsize, minimum width=1.65cm, minimum height=0.55cm},
+  colabox/.style={rectangle, draw=grisazul!60, fill=ambar!12, font=\scriptsize\bfseries, minimum width=1.9cm, minimum height=0.55cm}
+}
+
+\begin{document}
+
+% ── 1 · PORTADA ──────────────────────────────────────────────────────────────
+\begin{frame}[plain]
+\vfill
+\begin{center}
+{\dinfont\small\color{grisazul}ESTRUCTURA DE COMPUTADORES Y SISTEMAS DISTRIBUIDOS · EVALUACIÓN 3 · CASO 2}\\[16pt]
+{\dinfont\fontsize{27}{32}\selectfont\color{marino}Línea de producción con\\balanceo dinámico de carga}\\[14pt]
+{\normalsize\color{grisazul}Sistema distribuido que simula una planta conservera, detecta su cuello\\de botella en vivo y demuestra qué pasa cuando se escala la etapa lenta}\\[22pt]
+{\small\color{marino}\textbf{César Olivares · Simón García-Huidobro}}\\[4pt]
+{\small\color{grisazul}Profesor: Daniel Calderón R. · 24 de agosto de 2026}
+\end{center}
+\vfill
+\end{frame}
+
+% ── 2 · EL CASO ──────────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{1}{El caso}{Una planta conservera ficticia de jurel en lata, con cuatro etapas en serie}
+\begin{center}
+\begin{tikzpicture}[node distance=0.3cm]
+  \node (q1) [colaq] {cola};
+  \node (e1) [etapac, right=of q1] {\textbf{Fileteado}\\ ciclo 4 s};
+  \node (q2) [colaq, right=of e1] {cola};
+  \node (e2) [etaparc, right=of q2] {Envasado\\ ciclo 12 s\\ $\times$1--3 réplicas};
+  \node (q3) [colaq, right=of e2] {cola};
+  \node (e3) [etapac, right=of q3] {\textbf{Sellado}\\ ciclo 3 s};
+  \node (q4) [colaq, right=of e3] {cola};
+  \node (e4) [etapac, right=of q4] {\textbf{Esterilización}\\ ciclo 7 s};
+  \draw [arrow] (q1) -- (e1); \draw [arrow] (e1) -- (q2);
+  \draw [arrow] (q2) -- (e2); \draw [arrow] (e2) -- (q3);
+  \draw [arrow] (q3) -- (e3); \draw [arrow] (e3) -- (q4);
+  \draw [arrow] (q4) -- (e4);
+\end{tikzpicture}
+\end{center}
+\vspace{0.25cm}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\begin{itemize}
+  \item La unidad de trabajo es el \textbf{lote}; entre etapa y etapa hay una \textbf{cola}: la fila de lotes que esperan.
+  \item Si a una etapa le llega trabajo más rápido de lo que procesa, su fila crece: eso es un \textbf{cuello de botella}.
+  \item \textbf{Envasado}, la etapa más lenta, se replica detrás de un mecanismo de balanceo.
+\end{itemize}
+\column{0.44\textwidth}
+\begin{beamercolorbox}[sep=8pt, rounded=true]{tarjetabox}
+{\small\bfseries\color{marino}La pregunta del caso}\\[3pt]
+{\small\color{grisazul}¿Qué pasa con el cuello de botella cuando escalas la etapa lenta?}\\[4pt]
+{\small\bfseries\color{tealu}Adelanto: no desaparece — se muda.}
+\end{beamercolorbox}
+\end{columns}
+\end{frame}
+
+% ── 3 · ARQUITECTURA ─────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{2}{Arquitectura}{Cinco servicios en tres nodos lógicos; cada nodo escala por un motivo distinto}
+\begin{center}
+\begin{tikzpicture}[node distance=0.5cm and 1.0cm]
+  \node (na) [nodo, minimum width=3.3cm, minimum height=2.2cm, label={[font=\scriptsize\bfseries\color{marino}]above:NODO A — operación}] {};
+  \node at (na.center) [align=center, font=\scriptsize] {Tablero (Streamlit)\\ orders-api (FastAPI)};
+  \node (nb) [nodo, right=of na, minimum width=3.9cm, minimum height=2.2cm, label={[font=\scriptsize\bfseries\color{marino}]above:NODO B — procesamiento}] {};
+  \node at (nb.center) [align=center, font=\scriptsize] {fileteado\\ envasado $\times$1--3\\ sellado · esterilización};
+  \node (nc) [nodo, right=of nb, minimum width=3.3cm, minimum height=2.2cm, label={[font=\scriptsize\bfseries\color{marino}]above:NODO C — estado}] {};
+  \node at (nc.center) [align=center, font=\scriptsize] {Redis (colas)\\ metrics-api\\ SQLite};
+  \draw [arrow, <->] (na) -- (nb);
+  \draw [arrow, <->] (nb) -- (nc);
+  \draw [arrow, <->] (na.south) to[bend right=15] (nc.south);
+\end{tikzpicture}
+\end{center}
+\begin{itemize}
+  \item \textbf{Nodo B} es el único que se replica bajo carga: más capacidad = más contenedores ahí.
+  \item \textbf{Nodo C} concentra el estado compartido, que no puede duplicarse sin coordinación.
+  \item \textbf{Nodo A} escala con los usuarios, no con la producción. Separar nodos separa dominios de falla: si las estaciones saturan la CPU, el operador sigue atendido.
+\end{itemize}
+\end{frame}
+
+% ── 4 · UNA IMAGEN, CUATRO ESTACIONES ────────────────────────────────────────
+\begin{frame}[fragile]
+\titulo{3}{Una imagen, cuatro estaciones}{El mismo programa, desplegado cuatro veces con configuración distinta}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\begin{itemize}
+  \item Cada estación es \textbf{el mismo código}: la etapa, sus colas y su tiempo de ciclo llegan por variables de entorno (\texttt{NOMBRE\_ETAPA}, \texttt{COLA\_ENTRADA}, \texttt{COLA\_SALIDA}, \texttt{TIEMPO\_CICLO}).
+  \item Ninguna réplica sabe cuántas hermanas tiene, ni necesita saberlo.
+  \item Escalar la etapa replicada es \textbf{un solo comando}, sin tocar configuración.
+\end{itemize}
+\column{0.41\textwidth}
+\begin{beamercolorbox}[sep=8pt, rounded=true]{tarjetabox}
+{\footnotesize\ttfamily\color{marino}docker compose up -d\\ \hspace*{1em}--scale envasado=3}
+\end{beamercolorbox}
+\vspace{0.3cm}
+\cifra{1 imagen}{4 etapas · hasta 6 contenedores de estación}
+\end{columns}
+\end{frame}
+
+% ── 5 · BALANCEO POR DEMANDA ─────────────────────────────────────────────────
+\begin{frame}
+\titulo{4}{Balanceo por demanda}{Las réplicas piden trabajo al quedar libres; nadie se los asigna}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\begin{itemize}
+  \item El enunciado sugiere ``réplicas detrás de un balanceador''. Nuestro balanceador \textbf{es la cola compartida}: el punto único por el que pasa el trabajo.
+  \item Un round-robin es \emph{estático}: le sigue enviando lotes a una réplica lenta o atascada.
+  \item Con reparto por demanda, la réplica lenta simplemente \textbf{pide menos veces}: el balanceo dinámico emerge del mecanismo.
+\end{itemize}
+\column{0.41\textwidth}
+\begin{center}
+\begin{tikzpicture}
+  \node (cola) [colabox, minimum width=2.6cm] at (0,1.5) {cola: \#7 \#8 \#9};
+  \node (r1) [rep] at (-1.9,0) {réplica 1};
+  \node (r2) [rep] at (0,0) {réplica 2};
+  \node (r3) [rep] at (1.9,0) {réplica 3};
+  \draw [arrow, <-] (cola.south west) -- (r1.north) node[font=\tiny, midway, left=1pt] {pido};
+  \draw [arrow, <-] (cola.south) -- (r2.north) node[font=\tiny, midway, right=1pt] {pido};
+  \draw [arrow, <-] (cola.south east) -- (r3.north) node[font=\tiny, midway, right=1pt] {pido};
+  \node [font=\tiny\color{grisazul}, align=center] at (0,-0.75) {cada una reclama un lote\\ solo cuando queda libre};
+\end{tikzpicture}
+\end{center}
+\end{columns}
+\end{frame}
+
+% ── 6 · CONDICIÓN DE CARRERA ─────────────────────────────────────────────────
+\begin{frame}
+\titulo{5}{Condición de carrera}{La provocamos antes de resolverla — ambas versiones están en el historial de commits}
+\begin{center}
+\begin{tikzpicture}
+  \node [font=\scriptsize\bfseries\color{marino}] at (0,2.0) {Ingenua: mirar y sacar (2 pasos)};
+  \node (colaA) [colabox] at (0,1.25) {cola: lote \#42};
+  \node (r1a) [rep] at (-1.55,-0.1) {réplica 1};
+  \node (r2a) [rep] at (1.55,-0.1) {réplica 2};
+  \draw [arrow] (colaA.south west) -- (r1a.north) node[font=\tiny, midway, above, sloped] {ve \#42};
+  \draw [arrow] (colaA.south east) -- (r2a.north) node[font=\tiny, midway, above, sloped] {ve \#42};
+  \node [font=\scriptsize\bfseries\color{rojo}] at (0,-0.95) {duplicados con 3 réplicas y 200 órdenes};
+  \node [font=\scriptsize\bfseries\color{marino}] at (7.4,2.0) {Atómica: \texttt{BRPOP} (1 operación)};
+  \node (colaB) [colabox] at (7.4,1.25) {cola: \#42, \#43};
+  \node (r1b) [rep] at (5.85,-0.1) {réplica 1};
+  \node (r2b) [rep] at (8.95,-0.1) {réplica 2};
+  \draw [arrow] (colaB.south west) -- (r1b.north) node[font=\tiny, midway, above, sloped] {recibe \#42};
+  \draw [arrow] (colaB.south east) -- (r2b.north) node[font=\tiny, midway, above, sloped] {recibe \#43};
+  \node [font=\scriptsize\bfseries\color{tealu}] at (7.4,-0.95) {0 duplicados en 200 órdenes};
+\end{tikzpicture}
+\end{center}
+\vspace{0.15cm}
+\begin{itemize}
+  \item Entre ``mirar'' (\texttt{LRANGE}) y ``sacar'' (\texttt{LREM}) hay una ventana en la que otra réplica ve la misma orden. La ensanchamos a propósito hasta reproducir duplicados.
+  \item \texttt{BRPOP} extrae en \textbf{una operación indivisible}: la ventana no se administra con locks y TTL — \textbf{se elimina}.
+\end{itemize}
+\end{frame}
+
+% ── 7 · CRITERIO DE CUELLO DE BOTELLA ────────────────────────────────────────
+\begin{frame}
+\titulo{6}{Criterio de cuello de botella}{Medimos espera, no servicio — y esa decisión es el corazón del proyecto}
+\begin{columns}[T]
+\column{0.47\textwidth}
+\begin{itemize}
+  \item En el supermercado: un cajero lento no es atasco; atasco es la \textbf{fila que crece} frente a su caja.
+  \item Cuello = etapa con \textbf{mayor espera promedio} en una ventana móvil de 60 s, sobre umbrales relativos a su ciclo (advertencia $\geq 1{,}5\times$, crítico $\geq 3\times$).
+  \item Con 2 réplicas, envasado sigue teniendo el ciclo más largo (12 s) — pero la fila crece en \textbf{esterilización}.
+\end{itemize}
+\column{0.50\textwidth}
+\begin{center}
+\includegraphics[width=\linewidth]{../informe/figuras/fig_espera_vs_servicio.pdf}
+\end{center}
+\end{columns}
+\end{frame}
+
+% ── 8 · DEMO ─────────────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{7}{Demo en vivo}{El sistema completo, corriendo — tablero en \texttt{localhost:8501}}
+\vspace{0.2cm}
+\begin{columns}[T]
+\column{0.55\textwidth}
+{\small
+\begin{enumerate}
+  \item Línea al día: 4 etapas, 5 réplicas visibles con su ciclo y su carga.
+  \item Ingresamos lotes desde la interfaz, espaciados ($\sim$5 s).
+  \item La espera de esterilización crece en el gráfico: cartel \textcolor{ambar}{\textbf{ámbar}} $\to$ \textcolor{rojo}{\textbf{rojo}}, con la razón del diagnóstico.
+  \item Matamos Redis: la interfaz \textbf{nombra al servicio caído} y el resto sigue vivo. Lo levantamos y todo continúa.
+\end{enumerate}}
+\column{0.41\textwidth}
+\begin{beamercolorbox}[sep=8pt, rounded=true]{tarjetabox}
+{\small\bfseries\color{marino}Qué mirar durante la demo}\\[3pt]
+{\footnotesize\color{grisazul}El color marca \emph{importancia}, no identidad: lo normal es gris; el color fuerte queda reservado para advertencia y crítico, siempre con icono y texto.}
+\end{beamercolorbox}
+\vspace{0.25cm}
+\cifra{1 comando}{\texttt{docker compose up} — despliegue completo}
+\end{columns}
+\end{frame}
+
+% ── 9 · EXPERIMENTOS: PROTOCOLO ──────────────────────────────────────────────
+\begin{frame}
+\titulo{8}{Experimentos: la aritmética del escenario}{Inyección de 1 orden cada 5 s durante 180 s = 12 lotes/min}
+\begin{center}
+\includegraphics[width=0.68\linewidth]{../informe/figuras/fig_capacidad.pdf}
+\end{center}
+\begin{itemize}
+  \item Toda etapa \textbf{bajo la línea de llegada} acumula fila tarde o temprano.
+  \item Con 2 réplicas, envasado sube a 10 lotes/min — mejor, pero aún insuficiente — y esterilización (8,6) queda como siguiente límite: la figura \textbf{anticipa los resultados}.
+\end{itemize}
+\end{frame}
+
+% ── 10 · RESULTADO CENTRAL ───────────────────────────────────────────────────
+\begin{frame}
+\titulo{9}{El resultado central}{La espera por etapa según réplicas de envasado — el cuello no se elimina: se muda}
+\begin{center}
+\includegraphics[width=0.82\linewidth]{../informe/figuras/fig_espera_replicas.pdf}
+\end{center}
+\begin{itemize}
+  \item Con 1 réplica, envasado acumula 67,8 s de espera; el resto de la línea, casi ociosa.
+  \item Con 2, el cuello \textbf{se desplaza a esterilización}; con 3, envasado queda sobrado (0,7 s)\dots{} y el cuello sigue en esterilización.
+\end{itemize}
+\end{frame}
+
+% ── 11 · LEAD TIME ───────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{10}{¿Cuánto compra cada réplica?}{Lead time: lo que tarda una orden desde que se crea hasta que sale terminada}
+\begin{center}
+\includegraphics[width=0.6\linewidth]{../informe/figuras/fig_leadtime.pdf}
+\end{center}
+\begin{itemize}
+  \item La segunda réplica compra un \textbf{21 \%} de mejora; la tercera, casi nada: el límite ya no está en envasado.
+  \item La siguiente inversión correcta sería \textbf{una segunda autoclave}, no una tercera envasadora — y el tablero lo responde en vivo.
+\end{itemize}
+\end{frame}
+
+% ── 12 · RÉPLICA LENTA ───────────────────────────────────────────────────────
+\begin{frame}
+\titulo{11}{Balanceo con una réplica lenta}{Dos réplicas normales + una al doble de ciclo, sobre la misma cola, 30 lotes}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\begin{center}
+\includegraphics[width=\linewidth]{../informe/figuras/fig_replica_lenta.pdf}
+\end{center}
+\column{0.44\textwidth}
+\vspace{0.4cm}
+\begin{itemize}
+  \item Un round-robin habría repartido \textbf{10/10/10} sin importar la velocidad.
+  \item El reparto \textbf{11/12/7} no lo programó nadie: emergió de que cada réplica pide trabajo solo al quedar libre.
+  \item Eso es balanceo \emph{dinámico}: proporcional a la capacidad real de cada una.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ── 13 · SATURACIÓN ──────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{12}{Saturación y recuperación automática}{Ráfaga de 25 órdenes de golpe, sonda a \texttt{/metricas/cuello} cada 15 s}
+\begin{center}
+\includegraphics[width=0.8\linewidth]{../informe/figuras/fig_saturacion.pdf}
+\end{center}
+\begin{itemize}
+  \item A los 32 s el sistema declara \textbf{crítico} solo; la congestión recorre la línea como una ola.
+  \item A los \textbf{278 s} todo vuelve a normal \textbf{sin intervención}: las esperas viejas salieron de la ventana móvil.
+\end{itemize}
+\end{frame}
+
+% ── 14 · ERRORES ─────────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{13}{Manejo de errores}{La interfaz nunca muestra un traceback: nombra al servicio que realmente falta}
+\begin{columns}[T]
+\column{0.30\textwidth}
+\cifra{46 s}{colgado con Redis caído\\ (el cuelgue estaba en el DNS, no en el socket)}
+\column{0.30\textwidth}
+\cifra{2,1 s}{respuesta 503 con plazo duro de 2 s y mensaje en castellano}
+\column{0.34\textwidth}
+\vspace{0.5cm}
+\begin{itemize}
+  \item \texttt{201} creación · \texttt{422} validación · \texttt{404} inexistente · \texttt{503} dependencia caída — verificados contra el sistema corriendo.
+  \item El healthcheck mide \emph{vida}, no dependencias: un servicio que responde 503 explicándose está sano.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ── 15 · PERSISTENCIA Y REPRODUCIBILIDAD ─────────────────────────────────────
+\begin{frame}[fragile]
+\titulo{14}{Persistencia y reproducibilidad}{Dos tablas, nada guardado dos veces; despliegue con un comando}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\begin{itemize}
+  \item SQLite en un volumen: \texttt{ordenes} y \texttt{eventos} (12 eventos por orden completa).
+  \item Espera, servicio y lead time \textbf{no se almacenan}: se calculan siempre desde los eventos — el dato guardado dos veces es el dato que se contradice.
+  \item La base sobrevive a \texttt{docker compose down} (verificado).
+\end{itemize}
+\column{0.44\textwidth}
+\begin{beamercolorbox}[sep=8pt, rounded=true]{tarjetabox}
+{\footnotesize\ttfamily\color{marino}git clone <repo> \&\& cd <dir>\\ docker compose up -d --build\\ \# tablero en localhost:8501}
+\end{beamercolorbox}
+\vspace{0.25cm}
+\cifra{8/8}{contenedores \emph{healthy} en la prueba de clon limpio}
+\end{columns}
+\end{frame}
+
+% ── 16 · RESILIENCIA ─────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{15}{Resiliencia: cómo se abordaría}{No exigida por el enunciado — pero la arquitectura deja los puntos de corte listos}
+\begin{itemize}
+  \item \textbf{Estaciones:} sin estado propio, reconectan y mueren sin corromper nada. Pendiente: re-encolar el lote en curso si una réplica muere a mitad de ciclo (\texttt{BLMOVE} a una cola ``en proceso'' + barrendero de latidos vencidos).
+  \item \textbf{Redis:} punto único de falla del reparto $\to$ Redis Sentinel, o un broker con confirmaciones (el bonus Kafka apuntaba ahí).
+  \item \textbf{SQLite:} con más escritores o failover, migrar a MySQL/PostgreSQL cambiando solo el módulo \texttt{bd.py}.
+  \item \textbf{APIs y UI:} sin estado; dos instancias tras un balanceador HTTP quedan en alta disponibilidad — los healthchecks ya existentes son su insumo.
+\end{itemize}
+\vspace{0.2cm}
+{\small\color{grisazul}Cada mejora toca \textbf{un} nodo sin rediseñar los demás: para eso era la división en nodos.}
+\end{frame}
+
+% ── 17 · CONCLUSIONES ────────────────────────────────────────────────────────
+\begin{frame}
+\titulo{16}{Conclusiones}{Todo lo afirmado está respaldado por mediciones reproducibles}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\tarjeta{El cuello no se elimina: se muda}{De envasado a esterilización al pasar de 1 a 2 réplicas; la tercera ya casi no compra nada.}
+\vspace{0.15cm}
+\tarjeta{Medir espera es lo que permite verlo}{El cuello real tenía un ciclo más corto que envasado; por servicio jamás se habría encontrado.}
+\vspace{0.15cm}
+\tarjeta{El balanceo dinámico emerge}{11/12/7 con una réplica lenta, sin que nadie asignara ese reparto.}
+\column{0.48\textwidth}
+\tarjeta{La carrera se elimina, no se administra}{Extracción atómica: 0 duplicados en 200 órdenes, contra los duplicados de la versión ingenua.}
+\vspace{0.15cm}
+\tarjeta{Fallas explicadas, no enmascaradas}{503 en 2,1 s nombrando al culpable real, en vez de 46 s de silencio.}
+\vspace{0.5cm}
+\begin{center}
+{\small\color{grisazul}Gracias — ¿preguntas?}
+\end{center}
+\end{columns}
+\end{frame}
+
+\end{document}

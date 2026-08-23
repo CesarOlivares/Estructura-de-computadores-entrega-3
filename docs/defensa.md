@@ -119,9 +119,10 @@ Cada etapa responde solo por su propia cola.
 
 ## Pendientes antes de la defensa
 
-- [ ] Pasar el guion a slides PDF (≤15 min cronometrados).
-- [ ] Compilar `informe/informe_caso2.tex` (borrador listo),
-      completar capturas de anexos y exportar a PDF (≤15 pág + 15 anexos).
+- [x] Pasar el guion a slides PDF — `presentacion/presentacion_caso2.pdf`
+      (17 láminas; falta ensayar cronometrado).
+- [x] Compilar `informe/informe_caso2.tex` a PDF con gráficos de resultados
+      y bibliografía — falta completar capturas de anexos.
 - [ ] Prueba de equipo de la Fase 2 (cuestionario de docs/diseno.md §6, ambos
       sin mirar el documento) — obligatoria según el plan.
 - [ ] Repetir la prueba de clon limpio en la máquina 2 (integrante que no
