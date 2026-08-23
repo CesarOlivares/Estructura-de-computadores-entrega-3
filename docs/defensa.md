@@ -120,7 +120,7 @@ Cada etapa responde solo por su propia cola.
 ## Pendientes antes de la defensa
 
 - [ ] Pasar el guion a slides PDF (≤15 min cronometrados).
-- [ ] Compilar `Informe estructura 3/informe_caso2.tex` (borrador listo),
+- [ ] Compilar `informe/informe_caso2.tex` (borrador listo),
       completar capturas de anexos y exportar a PDF (≤15 pág + 15 anexos).
 - [ ] Prueba de equipo de la Fase 2 (cuestionario de docs/diseno.md §6, ambos
       sin mirar el documento) — obligatoria según el plan.

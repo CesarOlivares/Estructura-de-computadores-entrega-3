@@ -18,3 +18,14 @@ Thumbs.db
 # Editores
 .vscode/
 .idea/
+
+# Artefactos de compilación LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.nav
+*.snm

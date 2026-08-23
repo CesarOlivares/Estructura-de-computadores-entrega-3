@@ -852,7 +852,7 @@ arreglarla.**
 **Actualizado 22/08/2026 (madrugada).** Fases **0 a 14 completas y
 verificadas**, cada una con su commit y su bitácora en `docs/fases/`.
 **Fase 15 EN CURSO**: borrador completo del informe en
-`Informe estructura 3/informe_caso2.tex` (plantilla USACH de la entrega
+`informe/informe_caso2.tex` (plantilla USACH de la entrega
 anterior) y guion de defensa con preguntas probables en `docs/defensa.md`.
 
 **Pendientes del equipo antes de la defensa (24/08, 11:30):**
@@ -950,7 +950,7 @@ de rúbrica):
 
 ### Siguiente acción concreta
 
-Cerrar la Fase 15: compilar `Informe estructura 3/informe_caso2.tex`, tomar
+Cerrar la Fase 15: compilar `informe/informe_caso2.tex`, tomar
 las capturas del tablero para los anexos, pasar `docs/defensa.md` a slides y
 ensayar cronometrado. En cuanto estén juntos: prueba de equipo de la Fase 2 y
 clon limpio en la máquina 2.

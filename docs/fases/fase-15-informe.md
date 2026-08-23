@@ -10,7 +10,7 @@ del código.
 ## Qué hay hasta ahora
 
 - [x] **Borrador completo del informe** en
-      `Informe estructura 3/informe_caso2.tex`, reutilizando la plantilla
+      `informe/informe_caso2.tex`, reutilizando la plantilla
       LaTeX/USACH de la entrega anterior (misma portada, colores y estilos;
       compilable con los mismos `logoBN.png` y `portada.png` de la carpeta).
       Incluye todo lo que la rúbrica pide y el enunciado no menciona:
