@@ -1,0 +1,5 @@
+# El contexto de build de estacion/ y ui/ es toda la carpeta servicios/, para
+# que ambas imagenes puedan copiar comun/. Sin esto se colarian los .pyc que
+# deja una ejecucion local, invalidando la cache de capas sin motivo.
+**/__pycache__
+**/*.pyc

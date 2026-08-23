@@ -12,7 +12,11 @@
 # de la propia imagen (las imágenes slim no traen curl). Si /salud no responde,
 # `docker compose ps` marca el servicio como unhealthy y se ve de un vistazo.
 x-estacion: &estacion
-  build: ./servicios/estacion
+  # Contexto `./servicios` para que la imagen incluya también el paquete
+  # `comun/` (las dos formas de reclamar trabajo), compartido con el tablero.
+  build:
+    context: ./servicios
+    dockerfile: estacion/Dockerfile
   volumes:
     - datos:/datos
   healthcheck:
@@ -160,7 +164,9 @@ services:
   # ademas el hash `estado:replicas` de Redis para el indicador de carga por
   # replica, que es el unico dato que ningun servicio expone por HTTP.
   ui:
-    build: ./servicios/ui
+    build:
+      context: ./servicios
+      dockerfile: ui/Dockerfile
     container_name: ui
     ports:
       - "8501:8501"

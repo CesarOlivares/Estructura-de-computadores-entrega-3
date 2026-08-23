@@ -1,18 +1,22 @@
 # Imagen del tablero (Streamlit).
 #
-# El contexto de build es esta misma carpeta, igual que las demas estaciones del
-# compose. La UI no comparte codigo con los otros servicios: habla con ellos por
-# HTTP y por Redis, nada mas.
+# El contexto de build es `servicios/` (no `servicios/ui/`). El tablero habla
+# con el resto del sistema por HTTP y por Redis, pero comparte UN paquete de
+# código: `comun/`, donde viven las dos formas de reclamar trabajo. La sección
+# de demostración del tablero ejecuta esas funciones tal cual, para que lo que
+# se ve en pantalla sea el mismo código que corre en las estaciones y no una
+# reimplementación que pueda quedar desincronizada.
 FROM python:3.12-slim
 
 WORKDIR /app
 
 # Las dependencias primero y en su propia capa: mientras requirements.txt no
 # cambie, Docker reutiliza la capa y no vuelve a instalar nada.
-COPY requirements.txt .
+COPY ui/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY comun/ ./comun/
+COPY ui/ ./
 
 EXPOSE 8501
 

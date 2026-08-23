@@ -29,6 +29,7 @@ import uvicorn
 from fastapi import FastAPI
 
 import bd
+from comun import reclamo
 
 NOMBRE_ETAPA = os.environ["NOMBRE_ETAPA"]
 COLA_ENTRADA = os.environ["COLA_ENTRADA"]
@@ -43,12 +44,14 @@ ETAPA_SIGUIENTE = COLA_SALIDA.split(":", 1)[1]  # "cola:sellado" -> "sellado"
 
 # Cómo reclama trabajo la réplica: "atomico" (BRPOP, UNA operación — el modo
 # correcto y el default) o "ingenuo" (mirar y después sacar, DOS operaciones
-# con una ventana entre medio). El ingenuo se conserva solo para reproducir
-# la condición de carrera en demos; ver experimentos/fase6_carrera.sh.
+# con una ventana entre medio). Las dos implementaciones viven en
+# comun/reclamo.py, compartidas con la demostración del tablero. El ingenuo se
+# conserva solo para reproducir la condición de carrera; ver
+# experimentos/fase6_carrera.sh y la sección de demostración de la UI.
 MODO_RECLAMO = os.environ.get("MODO_RECLAMO", "atomico")
 # Pausa artificial dentro de la ventana del modo ingenuo, para hacer visible
 # en segundos un problema que en la realidad ocurre en microsegundos.
-DEMORA_INGENUA = float(os.environ.get("DEMORA_INGENUA", "0.1"))
+DEMORA_INGENUA = float(os.environ.get("DEMORA_INGENUA", reclamo.DEMORA_INGENUA_S))
 
 # Identidad de la réplica: etapa + hostname del contenedor (único por réplica).
 # PREFIJO_REPLICA permite distinguir variantes (p. ej. una réplica lenta).
@@ -95,39 +98,6 @@ def publicar_estado() -> None:
         pass  # sin Redis no hay dónde publicar; el ciclo del worker ya reintenta
 
 
-# --- Reclamo de órdenes -----------------------------------------------------
-
-
-def reclamar_atomico():
-    """Reclamo correcto: BRPOP saca el elemento en UNA operación indivisible.
-
-    Redis garantiza que cada elemento se entrega a exactamente una réplica,
-    aunque haya varias esperando sobre la misma cola.
-    """
-    resultado = r.brpop(COLA_ENTRADA, timeout=2)
-    return None if resultado is None else resultado[1]
-
-
-def reclamar_ingenuo():
-    """Reclamo INTENCIONALMENTE ROTO, para demostrar la condición de carrera.
-
-    Separa el reclamo en dos operaciones: (1) mirar el último elemento con
-    LRANGE, (2) sacarlo con LREM. Entre ambas hay una ventana en la que otra
-    réplica puede mirar la cola y ver LA MISMA orden. Las dos la "reclaman",
-    las dos la procesan: orden duplicada. Ignorar el resultado de LREM (que
-    avisaría que otro la sacó primero) es exactamente el error que se comete
-    al programar esto sin pensar en concurrencia.
-    """
-    vistos = r.lrange(COLA_ENTRADA, -1, -1)  # 1) mirar sin sacar
-    if not vistos:
-        time.sleep(0.2)  # cola vacía: pequeña pausa para no martillar Redis
-        return None
-    orden_id = vistos[0]
-    time.sleep(DEMORA_INGENUA)  # <- la ventana fatal, ensanchada para la demo
-    r.lrem(COLA_ENTRADA, 1, orden_id)  # 2) sacar por valor, ignorando si ya no estaba
-    return orden_id
-
-
 # --- Ciclo del worker -------------------------------------------------------
 
 
@@ -171,10 +141,10 @@ def registrar_termino(orden_id: str) -> None:
 
 def bucle_worker() -> None:
     log(f"lista: {COLA_ENTRADA} -> {COLA_SALIDA}, ciclo {TIEMPO_CICLO}s, reclamo {MODO_RECLAMO}")
-    reclamar = reclamar_ingenuo if MODO_RECLAMO == "ingenuo" else reclamar_atomico
+    reclamar = reclamo.reclamador(MODO_RECLAMO, DEMORA_INGENUA)
     while True:
         try:
-            orden_id = reclamar()
+            orden_id = reclamar(r, COLA_ENTRADA)
             if orden_id is None:
                 publicar_estado()  # latido periódico aunque no haya trabajo
                 continue
