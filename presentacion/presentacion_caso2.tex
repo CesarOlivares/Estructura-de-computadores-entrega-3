@@ -1,7 +1,9 @@
+%!TEX program = xelatex
 % =============================================================================
 % PRESENTACIÓN — Evaluación 3 ECSD · Caso 2: Línea de Producción con Balanceo Dinámico
-% Estilo: minimalista, secciones numeradas, tipografía DIN (Bahnschrift).
-% Compilar con XeLaTeX/Tectonic (usa fuentes del sistema Windows).
+% Estilo: minimalista, tipografía DIN (Bahnschrift), acento teal.
+% Compilar con XeLaTeX. En Overleaf: subir el repo y elegir XeLaTeX en Menú →
+% Compiler; las fuentes caen solas a Lato + Roboto Condensed.
 % Las figuras se generan con informe/figuras/generar_figuras.py
 % =============================================================================
 \documentclass[aspectratio=169,10pt]{beamer}
@@ -14,8 +16,29 @@
 \usetikzlibrary{shapes.geometric, arrows, positioning, calc}
 
 \usepackage{fontspec}
-\IfFontExistsTF{Segoe UI}{\setsansfont{Segoe UI}}{}
-\IfFontExistsTF{Bahnschrift}{\newfontfamily\dinfont{Bahnschrift}}{\newcommand{\dinfont}{\sffamily}}
+
+% Tipografía en cascada: primero las de Windows (el diseño original), después
+% las libres del árbol de TeX Live — que es lo que hay en Overleaf, donde las
+% de Microsoft no existen —, y al final las genéricas para que la compilación
+% nunca falle por fuentes.
+\IfFontExistsTF{Segoe UI}
+  {\setsansfont{Segoe UI}}
+  {\IfFontExistsTF{Lato-Regular.ttf}
+    {\setsansfont{Lato}[
+       Extension = .ttf, UprightFont = *-Regular, BoldFont = *-Bold,
+       ItalicFont = *-Italic, BoldItalicFont = *-BoldItalic]}
+    {}}
+
+% La condensada de los números de lámina y las cifras grandes.
+\IfFontExistsTF{Bahnschrift}
+  {\newfontfamily\dinfont{Bahnschrift}}
+  {\IfFontExistsTF{RobotoCondensed-Regular.ttf}
+    {\newfontfamily\dinfont{RobotoCondensed}[
+       Extension = .ttf, UprightFont = *-Regular, BoldFont = *-Bold]}
+    {\newcommand{\dinfont}{\sffamily}}}
+
+% Las figuras se buscan igual desde presentacion/ o desde la raíz.
+\graphicspath{{../informe/figuras/}{informe/figuras/}{figuras/}{./}}
 
 % ── Colores (estilo deck Seguridad + acentos del proyecto) ───────────────────
 \definecolor{marino}{HTML}{1A2744}
@@ -24,7 +47,6 @@
 \definecolor{ambar}{HTML}{E8A013}
 \definecolor{rojo}{HTML}{D03B3B}
 \definecolor{grisclaro}{HTML}{EDECE7}
-\definecolor{grisborde}{HTML}{C9C7C0}
 
 % ── Beamer minimalista ───────────────────────────────────────────────────────
 \setbeamertemplate{navigation symbols}{}
@@ -39,12 +61,15 @@
   ECSD · Evaluación 3 — Caso 2 · César Olivares · Simón García-Huidobro}%
   \hfill\raisebox{1.1em}{\tiny\color{grisazul}\insertframenumber\ /\ \inserttotalframenumber\hspace{1.2em}}}
 
-% Título de lámina: número grande + título en mayúsculas + subtítulo gris
-\newcommand{\titulo}[3]{%
+% Título de lámina: título en mayúsculas + subtítulo gris.
+% Antes llevaba delante un número de tema en gris claro. Se quitó: contaba
+% temas, no páginas, así que a partir de la segunda lámina ya no coincidía con
+% el número del pie y desorientaba en vez de orientar. El pie sigue llevando la
+% numeración real de páginas.
+\newcommand{\titulo}[2]{%
   \vspace{0.12cm}%
-  {\dinfont\Huge\color{grisborde}#1}\\[-0.9ex]
-  {\dinfont\LARGE\color{marino}\MakeUppercase{#2}}\\[0.3ex]
-  {\normalsize\color{grisazul}#3}\\[0.2ex]
+  {\dinfont\LARGE\color{marino}\MakeUppercase{#1}}\\[0.3ex]
+  {\normalsize\color{grisazul}#2}\\[0.2ex]
   {\color{tealu}\rule{2.2cm}{2pt}}\\[0.6ex]}
 
 % Tarjeta para conclusiones / bloques
@@ -89,7 +114,7 @@
 
 % ── 2 · EL CASO ──────────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{1}{El caso}{Una planta conservera ficticia de jurel en lata, con cuatro etapas en serie}
+\titulo{El caso}{Una planta conservera ficticia de jurel en lata, con cuatro etapas en serie}
 \begin{center}
 \begin{tikzpicture}[node distance=0.3cm]
   \node (q1) [colaq] {cola};
@@ -125,7 +150,7 @@
 
 % ── 3 · ARQUITECTURA ─────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{2}{Arquitectura}{Cinco servicios en tres nodos lógicos; cada nodo escala por un motivo distinto}
+\titulo{Arquitectura}{Cinco servicios en tres nodos lógicos; cada nodo escala por un motivo distinto}
 \begin{center}
 \begin{tikzpicture}[node distance=0.5cm and 1.0cm]
   \node (na) [nodo, minimum width=3.3cm, minimum height=2.2cm, label={[font=\scriptsize\bfseries\color{marino}]above:NODO A — operación}] {};
@@ -148,7 +173,7 @@
 
 % ── 4 · UNA IMAGEN, CUATRO ESTACIONES ────────────────────────────────────────
 \begin{frame}[fragile]
-\titulo{3}{Una imagen, cuatro estaciones}{El mismo programa, desplegado cuatro veces con configuración distinta}
+\titulo{Una imagen, cuatro estaciones}{El mismo programa, desplegado cuatro veces con configuración distinta}
 \begin{columns}[T]
 \column{0.55\textwidth}
 \begin{itemize}
@@ -167,7 +192,7 @@
 
 % ── 5 · BALANCEO POR DEMANDA ─────────────────────────────────────────────────
 \begin{frame}
-\titulo{4}{Balanceo por demanda}{Las réplicas piden trabajo al quedar libres; nadie se los asigna}
+\titulo{Balanceo por demanda}{Las réplicas piden trabajo al quedar libres; nadie se los asigna}
 \begin{columns}[T]
 \column{0.55\textwidth}
 \begin{itemize}
@@ -193,7 +218,7 @@
 
 % ── 6 · CONDICIÓN DE CARRERA ─────────────────────────────────────────────────
 \begin{frame}
-\titulo{5}{Condición de carrera}{La provocamos antes de resolverla — ambas versiones están en el historial de commits}
+\titulo{Condición de carrera}{La provocamos antes de resolverla — ambas versiones están en el historial de commits}
 \begin{center}
 \begin{tikzpicture}
   \node [font=\scriptsize\bfseries\color{marino}] at (0,2.0) {Ingenua: mirar y sacar (2 pasos)};
@@ -221,7 +246,7 @@
 
 % ── 7 · CRITERIO DE CUELLO DE BOTELLA ────────────────────────────────────────
 \begin{frame}
-\titulo{6}{Criterio de cuello de botella}{Medimos espera, no servicio — y esa decisión es el corazón del proyecto}
+\titulo{Criterio de cuello de botella}{Medimos espera, no servicio — y esa decisión es el corazón del proyecto}
 \begin{columns}[T]
 \column{0.47\textwidth}
 \begin{itemize}
@@ -231,14 +256,14 @@
 \end{itemize}
 \column{0.50\textwidth}
 \begin{center}
-\includegraphics[width=\linewidth]{../informe/figuras/fig_espera_vs_servicio.pdf}
+\includegraphics[width=\linewidth]{fig_espera_vs_servicio.pdf}
 \end{center}
 \end{columns}
 \end{frame}
 
 % ── 8 · DEMO ─────────────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{7}{Demo en vivo}{El sistema completo, corriendo — tablero en \texttt{localhost:8501}}
+\titulo{Demo en vivo}{El sistema completo, corriendo — tablero en \texttt{localhost:8501}}
 \vspace{0.2cm}
 \begin{columns}[T]
 \column{0.55\textwidth}
@@ -262,9 +287,9 @@
 
 % ── 9 · EXPERIMENTOS: PROTOCOLO ──────────────────────────────────────────────
 \begin{frame}
-\titulo{8}{Experimentos: la aritmética del escenario}{Inyección de 1 orden cada 5 s durante 180 s = 12 lotes/min}
+\titulo{Experimentos: la aritmética del escenario}{Inyección de 1 orden cada 5 s durante 180 s = 12 lotes/min}
 \begin{center}
-\includegraphics[width=0.68\linewidth]{../informe/figuras/fig_capacidad.pdf}
+\includegraphics[width=0.68\linewidth]{fig_capacidad.pdf}
 \end{center}
 \begin{itemize}
   \item Toda etapa \textbf{bajo la línea de llegada} acumula fila tarde o temprano.
@@ -274,9 +299,9 @@
 
 % ── 10 · RESULTADO CENTRAL ───────────────────────────────────────────────────
 \begin{frame}
-\titulo{9}{El resultado central}{La espera por etapa según réplicas de envasado — el cuello no se elimina: se muda}
+\titulo{El resultado central}{La espera por etapa según réplicas de envasado — el cuello no se elimina: se muda}
 \begin{center}
-\includegraphics[width=0.82\linewidth]{../informe/figuras/fig_espera_replicas.pdf}
+\includegraphics[width=0.82\linewidth]{fig_espera_replicas.pdf}
 \end{center}
 \begin{itemize}
   \item Con 1 réplica, envasado acumula 67,8 s de espera; el resto de la línea, casi ociosa.
@@ -286,9 +311,9 @@
 
 % ── 11 · LEAD TIME ───────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{10}{¿Cuánto compra cada réplica?}{Lead time: lo que tarda una orden desde que se crea hasta que sale terminada}
+\titulo{¿Cuánto compra cada réplica?}{Lead time: lo que tarda una orden desde que se crea hasta que sale terminada}
 \begin{center}
-\includegraphics[width=0.6\linewidth]{../informe/figuras/fig_leadtime.pdf}
+\includegraphics[width=0.6\linewidth]{fig_leadtime.pdf}
 \end{center}
 \begin{itemize}
   \item La segunda réplica compra un \textbf{21 \%} de mejora; la tercera, casi nada: el límite ya no está en envasado.
@@ -298,11 +323,11 @@
 
 % ── 12 · RÉPLICA LENTA ───────────────────────────────────────────────────────
 \begin{frame}
-\titulo{11}{Balanceo con una réplica lenta}{Dos réplicas normales + una al doble de ciclo, sobre la misma cola, 30 lotes}
+\titulo{Balanceo con una réplica lenta}{Dos réplicas normales + una al doble de ciclo, sobre la misma cola, 30 lotes}
 \begin{columns}[T]
 \column{0.52\textwidth}
 \begin{center}
-\includegraphics[width=\linewidth]{../informe/figuras/fig_replica_lenta.pdf}
+\includegraphics[width=\linewidth]{fig_replica_lenta.pdf}
 \end{center}
 \column{0.44\textwidth}
 \vspace{0.4cm}
@@ -316,9 +341,9 @@
 
 % ── 13 · SATURACIÓN ──────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{12}{Saturación y recuperación automática}{Ráfaga de 25 órdenes de golpe, sonda a \texttt{/metricas/cuello} cada 15 s}
+\titulo{Saturación y recuperación automática}{Ráfaga de 25 órdenes de golpe, sonda a \texttt{/metricas/cuello} cada 15 s}
 \begin{center}
-\includegraphics[width=0.8\linewidth]{../informe/figuras/fig_saturacion.pdf}
+\includegraphics[width=0.8\linewidth]{fig_saturacion.pdf}
 \end{center}
 \begin{itemize}
   \item A los 32 s el sistema declara \textbf{crítico} solo; la congestión recorre la línea como una ola.
@@ -328,7 +353,7 @@
 
 % ── 14 · ERRORES ─────────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{13}{Manejo de errores}{La interfaz nunca muestra un traceback: nombra al servicio que realmente falta}
+\titulo{Manejo de errores}{La interfaz nunca muestra un traceback: nombra al servicio que realmente falta}
 \begin{columns}[T]
 \column{0.30\textwidth}
 \cifra{46 s}{colgado con Redis caído\\ (el cuelgue estaba en el DNS, no en el socket)}
@@ -345,7 +370,7 @@
 
 % ── 15 · PERSISTENCIA Y REPRODUCIBILIDAD ─────────────────────────────────────
 \begin{frame}[fragile]
-\titulo{14}{Persistencia y reproducibilidad}{Dos tablas, nada guardado dos veces; despliegue con un comando}
+\titulo{Persistencia y reproducibilidad}{Dos tablas, nada guardado dos veces; despliegue con un comando}
 \begin{columns}[T]
 \column{0.52\textwidth}
 \begin{itemize}
@@ -364,7 +389,7 @@
 
 % ── 16 · RESILIENCIA ─────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{15}{Resiliencia: cómo se abordaría}{No exigida por el enunciado — pero la arquitectura deja los puntos de corte listos}
+\titulo{Resiliencia: cómo se abordaría}{No exigida por el enunciado — pero la arquitectura deja los puntos de corte listos}
 \begin{itemize}
   \item \textbf{Estaciones:} sin estado propio, reconectan y mueren sin corromper nada. Pendiente: re-encolar el lote en curso si una réplica muere a mitad de ciclo (\texttt{BLMOVE} a una cola ``en proceso'' + barrendero de latidos vencidos).
   \item \textbf{Redis:} punto único de falla del reparto $\to$ Redis Sentinel, o un broker con confirmaciones (el bonus Kafka apuntaba ahí).
@@ -377,7 +402,7 @@
 
 % ── 17 · CONCLUSIONES ────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{16}{Conclusiones}{Todo lo afirmado está respaldado por mediciones reproducibles}
+\titulo{Conclusiones}{Todo lo afirmado está respaldado por mediciones reproducibles}
 \begin{columns}[T]
 \column{0.48\textwidth}
 \tarjeta{El cuello no se elimina: se muda}{De envasado a esterilización al pasar de 1 a 2 réplicas; la tercera ya casi no compra nada.}
