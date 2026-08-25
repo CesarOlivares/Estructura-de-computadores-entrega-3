@@ -198,7 +198,7 @@ Esterilización & Autoclave, ciclo fijo & 7 & 1 \\
 \end{table}
 
 La unidad de trabajo es el \textbf{lote} (una cantidad de latas del mismo
-formato). El sistema cumple los requisitos del enunciado: arquitectura
+formato). El sistema es una arquitectura
 distribuida con más de tres servicios en tres nodos lógicos, una etapa
 replicada detrás de un mecanismo de balanceo, coordinación del reparto sin
 condiciones de carrera, detección de cuellos de botella \emph{en vivo},
@@ -210,6 +210,165 @@ literalmente la premisa del caso: al escalar envasado de 1 a 2 réplicas, el
 cuello de botella \textbf{se desplaza} de envasado a esterilización y el lead
 time cae un 21~\%; una tercera réplica ya casi no mejora nada, porque el límite
 se mudó de etapa.
+
+% =============================================================================
+\section{Conceptos y vocabulario}
+\label{sec:vocabulario}
+
+Este informe usa vocabulario de dos mundos distintos —el de la planta y el de
+los sistemas distribuidos— y conviene fijar los dos antes de empezar, porque
+varios términos se parecen y significan cosas diferentes.
+
+\subsection{Los tres tiempos, que no son lo mismo}
+
+La distinción entre estos tres es el eje de todo el análisis. Confundirlos lleva
+a diagnosticar mal:
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item \textbf{Tiempo de ciclo:} cuánto tarda una etapa en procesar un lote
+        cuando ya lo tiene en la mano. Es una propiedad de la máquina: la
+        autoclave tarda 7~s y no hay forma de apurarla.
+  \item \textbf{Tiempo de espera:} cuánto tiempo pasa un lote \emph{haciendo
+        fila} antes de que una etapa lo tome. Es una propiedad de la carga, no
+        de la máquina, y es la señal que usamos para detectar atascos.
+  \item \textbf{\emph{Lead time}:} el total, de punta a punta — desde que se
+        crea la orden hasta que el lote sale terminado de la última etapa.
+        Suma todas las esperas y todos los ciclos del recorrido. Es lo que
+        percibe quien encarga la producción.
+\end{itemize}
+
+Un tiempo de ciclo largo significa que la tarea es lenta. Un tiempo de espera
+que crece significa que la etapa \textbf{no da abasto}. Son cosas distintas, y
+solo la segunda es un \textbf{cuello de botella}: la etapa a la que le llega
+trabajo más rápido de lo que puede sacarlo, y frente a la cual la fila se
+alarga sin parar.
+
+\subsection{Vocabulario de sistemas distribuidos}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}L{3.05cm} L{12.15cm}@{}}
+\toprule
+\textbf{Término} & \textbf{Qué significa en este informe} \\
+\midrule
+\textbf{Servicio} &
+Un programa que corre por su cuenta y ofrece algo a los demás a través de la
+red, en vez de ser una función que se llama dentro del mismo programa. \\
+\addlinespace[2pt]
+\textbf{Réplica} &
+Una copia idéntica de un servicio corriendo al mismo tiempo que las otras, para
+repartirse el trabajo entre todas. \emph{Escalar} una etapa es levantar más
+réplicas de ella. Ninguna sabe cuántas hermanas tiene. \\
+\addlinespace[2pt]
+\textbf{Nodo lógico} &
+Un grupo de servicios que conviene mantener juntos porque escalan o fallan por
+el mismo motivo. Es una agrupación de diseño: no obliga a usar máquinas
+físicas distintas, pero deja listo el corte por si se necesitaran. \\
+\addlinespace[2pt]
+\textbf{API} &
+\emph{Interfaz de programación de aplicaciones}: el conjunto de operaciones
+que un servicio ofrece a los demás, con su formato de entrada y de salida
+fijado de antemano. Es el contrato entre programas. \\
+\addlinespace[2pt]
+\textbf{REST y JSON} &
+La convención que seguimos para esas operaciones: se piden por direcciones web
+(\texttt{/ordenes}, \texttt{/metricas}) usando verbos HTTP —\texttt{GET} para
+consultar, \texttt{POST} para crear— y los datos viajan como texto en formato
+JSON, que es legible tanto para una persona como para un programa. \\
+\addlinespace[2pt]
+\textbf{Código HTTP} &
+El número con el que una respuesta dice cómo le fue: \texttt{200} y
+\texttt{201} bien, \texttt{404} no existe, \texttt{422} los datos enviados no
+son válidos, \texttt{503} el servicio no puede atender ahora. \\
+\addlinespace[2pt]
+\textbf{Cola} &
+Una fila de trabajo pendiente compartida: unos programas dejan tareas por un
+extremo y otros las sacan por el otro, sin conocerse entre sí. \\
+\addlinespace[2pt]
+\textbf{Operación atómica} &
+Una operación que ocurre entera o no ocurre: no existe ningún instante
+intermedio en el que otro programa pueda ver el sistema a medio hacer. Es la
+propiedad que hace que sacar un lote de una cola sea seguro. \\
+\addlinespace[2pt]
+\textbf{Condición de carrera} &
+El error que aparece cuando dos programas actúan sobre lo mismo al mismo
+tiempo y el resultado depende de cuál llegó primero. Aquí se manifiesta como
+dos réplicas envasando el mismo lote. \\
+\addlinespace[2pt]
+\textbf{\emph{Round-robin}} &
+La forma más simple de repartir trabajo: por turnos fijos y en orden —uno para
+ti, uno para ti, uno para ti— sin mirar si alguien está ocupado o es más lento.
+Es el contraste contra el que medimos nuestro reparto. \\
+\addlinespace[2pt]
+\textbf{Ventana móvil} &
+Mirar solo lo ocurrido en los últimos $N$ segundos en vez de todo el
+histórico, para que una congestión antigua y ya resuelta no siga contaminando
+el diagnóstico de ahora. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Las herramientas concretas}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}L{3.05cm} L{12.15cm}@{}}
+\toprule
+\textbf{Herramienta} & \textbf{Qué hace y por qué está aquí} \\
+\midrule
+\textbf{Docker} &
+Empaqueta un programa junto con todo lo que necesita para correr —intérprete,
+librerías, configuración— en una unidad llamada \emph{contenedor}, que se
+comporta igual en cualquier máquina. Es lo que hace que el sistema levante en
+un computador que no tiene Python ni Redis instalados. \\
+\addlinespace[2pt]
+\textbf{Imagen y contenedor} &
+La \emph{imagen} es la plantilla; el \emph{contenedor} es una ejecución
+concreta de esa plantilla. Nuestras cuatro etapas son cuatro contenedores de
+\textbf{la misma} imagen, con configuración distinta. \\
+\addlinespace[2pt]
+\textbf{Docker Compose} &
+Describe en un solo archivo todos los contenedores del sistema y cómo se
+conectan, de modo que levantar el conjunto completo sea un comando
+(\texttt{docker compose up}) y no una secuencia de pasos manuales. \\
+\addlinespace[2pt]
+\textbf{Volumen} &
+Un espacio de disco que vive fuera del contenedor, para que los datos
+sobrevivan cuando el contenedor se apaga o se reemplaza. \\
+\addlinespace[2pt]
+\textbf{\emph{Healthcheck}} &
+Una comprobación periódica y automática que Docker le hace a cada contenedor
+para saber si sigue vivo. \\
+\addlinespace[2pt]
+\textbf{Redis} \cite{redis} &
+Una base de datos que guarda todo en memoria, lo que la hace muy rápida.
+Atiende los comandos de uno en uno, y esa propiedad es justamente la que
+usamos para coordinar las réplicas: la usamos como cola de trabajo, no como
+almacén permanente. \\
+\addlinespace[2pt]
+\textbf{\texttt{BRPOP}} &
+El comando de Redis que saca el último elemento de una cola y lo entrega en
+una sola operación indivisible; si la cola está vacía, se queda esperando en
+vez de responder que no hay nada. \\
+\addlinespace[2pt]
+\textbf{SQLite} &
+Una base de datos que vive en un único archivo, sin servidor aparte que
+administrar. Guarda lo que tiene que sobrevivir a un apagado: las órdenes y su
+historial de eventos. \\
+\addlinespace[2pt]
+\textbf{FastAPI} &
+La librería de Python con la que están escritos los dos servicios que exponen
+API. Valida sola los datos que llegan y genera documentación navegable de sus
+propias operaciones. \\
+\addlinespace[2pt]
+\textbf{Streamlit} &
+La librería de Python con la que está hecho el tablero. Permite construir una
+interfaz web desde código Python, sin escribir HTML ni JavaScript. \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % =============================================================================
 \section{Arquitectura del sistema}
@@ -267,8 +426,8 @@ ahí). El nodo C concentra el estado compartido, que por ser compartido
 \emph{no puede} duplicarse sin coordinación adicional. El nodo A expone el
 sistema al operador y escala con los usuarios, no con la producción.
 
-\textbf{Por qué mantener dos o más nodos} (exigencia de la rúbrica): además de
-ser requisito del enunciado, separa dominios de falla y de recursos — la
+\textbf{Por qué mantener dos o más nodos:} separa dominios de falla y de
+recursos — la
 saturación de CPU de las estaciones (nodo B) no degrada la atención HTTP del
 operador (nodo A) ni la integridad del estado (nodo C); y permite dimensionar
 hardware distinto para cargas distintas (B necesita CPU, C necesita disco
@@ -293,7 +452,9 @@ La última etapa marca la orden como \texttt{terminada}.
 \subsection{Balanceo por demanda: cola \emph{pull}, no balanceador clásico}
 \label{sec:pull}
 
-El enunciado sugiere ``réplicas detrás de un balanceador''. Decidimos —y es una
+La forma habitual de repartir trabajo entre réplicas es poner un
+\textbf{balanceador} delante de ellas: una pieza intermedia que recibe cada
+tarea y decide a qué réplica mandársela. Decidimos —y es una
 \textbf{decisión nuestra que defendemos aquí}— implementar el balanceo como
 \textbf{cola de trabajo compartida}: las réplicas \emph{piden} un lote cuando
 quedan libres, en vez de recibirlo asignado por una pieza intermedia — el
@@ -314,7 +475,7 @@ patrón de consumidores en competencia sobre un broker de mensajes
         sin tocar configuración.
 \end{enumerate}
 
-El ``balanceador'' del enunciado existe, pero es la cola: el punto único por
+El balanceador existe, pero es la cola: el punto único por
 el que pasa el trabajo y que decide quién procesa qué. Si se exigiera un
 balanceador HTTP clásico, un Nginx delante de las réplicas cubriría las
 consultas de estado; para el \emph{trabajo}, el reparto por demanda es
@@ -323,7 +484,7 @@ estrictamente superior en este caso.
 \subsection{Coordinación y condición de carrera: provocarla antes de resolverla}
 \label{sec:carrera}
 
-El requisito de coordinación (``que dos réplicas no tomen la misma orden'') se
+El problema de coordinación —que dos réplicas no tomen la misma orden— se
 abordó en dos pasos deliberados, ambos preservados en el historial de commits:
 
 \textbf{Versión ingenua (commiteada rota a propósito).} Reclamar una orden en
@@ -372,15 +533,16 @@ ventana no existe.}
 \end{figure}
 
 Se prefirió la operación atómica de cola por sobre un lock/contador distribuido
-(la alternativa que el enunciado menciona como ejemplo) porque elimina la
+(la alternativa clásica) porque elimina la
 ventana en vez de administrarla: no hay TTL que expire a mitad de un ciclo ni
-liberación de lock que se pueda olvidar. El requisito del ``lock/contador
-distribuido'' está cubierto por el mismo Redis que serializa las extracciones.
+liberación de lock que se pueda olvidar. La función de un ``lock/contador
+distribuido'' la cumple el mismo Redis que serializa las extracciones.
 
 \subsection{Criterio de cuello de botella: espera, no servicio}
 \label{sec:criterio}
 
-El enunciado no define qué es un cuello de botella; el criterio es una
+No existe una definición única de cuello de botella que sirva para cualquier
+línea, así que había que elegir una y defenderla. El criterio es una
 \textbf{decisión nuestra} y es el argumento técnico central del proyecto:
 
 \begin{quote}
@@ -441,8 +603,8 @@ y una conexión por operación.
 
 \subsection{Interfaz de operación}
 
-El tablero (Streamlit, puerto 8501) cumple los cuatro requisitos de UI del
-enunciado y el histórico que exige la rúbrica: \textbf{(1)} timeline de
+El tablero (Streamlit, puerto 8501) tiene cuatro piezas, más el histórico:
+\textbf{(1)} timeline de
 producción — las cuatro etapas con sus colas, lotes esperando y estado;
 \textbf{(2)} indicador de carga por réplica — cada réplica publica un latido en
 el hash \texttt{estado:replicas} de Redis con su etapa, ocupación, lotes
@@ -625,7 +787,7 @@ fallas comunes.
 \section{Resiliencia: cómo se abordaría}
 \label{sec:resiliencia}
 
-El enunciado no exige tolerancia a fallos y este proyecto, deliberadamente,
+Este proyecto, deliberadamente,
 \textbf{detecta y explica} las fallas en vez de enmascararlas (sin reintentos,
 sin circuit breaker). Si se necesitara operar esto en producción, la
 arquitectura ya deja los puntos de corte correctos:
@@ -703,16 +865,16 @@ upgrades locales: cada mejora toca un nodo sin rediseñar los demás.
         trabajo real.
   \item Un lote representa una cantidad de latas del mismo formato; no se
         modelan latas individuales.
-  \item El enunciado no fija qué persistir: decidimos órdenes y eventos, con
-        las métricas siempre derivadas.
-  \item El enunciado no define el criterio de cuello de botella ni umbrales:
-        el criterio de §\ref{sec:criterio} es decisión nuestra.
+  \item Nada obligaba a persistir un conjunto concreto de datos: decidimos
+        guardar órdenes y eventos, con las métricas siempre derivadas.
+  \item El criterio de cuello de botella y sus umbrales no vienen dados por el
+        problema: los de §\ref{sec:criterio} son decisión nuestra.
 \end{enumerate}
 
 % =============================================================================
 \section{Conclusiones}
 
-El sistema cumple los requisitos del caso de punta a punta y sus afirmaciones
+El sistema resuelve el caso de punta a punta y sus afirmaciones
 están respaldadas por mediciones reproducibles: el reparto por demanda
 balancea sin conocer las réplicas (11/12/7 con una réplica lenta), la
 extracción atómica elimina la condición de carrera (0 duplicados en 200

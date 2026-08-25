@@ -111,12 +111,12 @@ La evaluación pide diseñar, implementar y \textbf{desplegar} un sistema distri
 \centering\footnotesize
 \begin{tabular}{@{}L{5.1cm} L{10.1cm}@{}}
 \toprule
-\textbf{Exigencia del enunciado} & \textbf{Cómo la cubrimos} \\
+\textbf{Capacidad del sistema} & \textbf{Cómo se resuelve} \\
 \midrule
 Mínimo 3 servicios o procesos & Cuatro: Órdenes, Estación (replicada), Coordinación de carga y Métricas \\
 Mínimo 2 nodos lógicos & Tres contenedores Docker, uno por grupo funcional \\
 UI con interacción real & Streamlit: crea órdenes, ajusta tiempos y muestra el estado en vivo \\
-Persistencia obligatoria & Base de datos con órdenes, eventos e historial de métricas \\
+Persistencia & Base de datos con órdenes, eventos e historial de métricas \\
 Reproducibilidad & Todo el sistema levanta con \texttt{docker compose up}, más README \\
 Manejo básico de errores & Validación de entradas, códigos HTTP correctos y mensajes claros en la UI \\
 \bottomrule
@@ -294,7 +294,7 @@ Toda orden atraviesa dos etapas: primero \emph{espera} en la cola, y después es
 \text{Utilización}_i = \frac{\text{tiempo ocupado de la réplica } i}{\text{tiempo total observado}}
 \]
 
-La clave de diagnóstico es que \textbf{un tiempo de servicio alto no es un cuello de botella}: significa simplemente que la tarea es larga. El cuello de botella aparece cuando el \emph{tiempo de espera} crece de forma sostenida, porque indica que llega más trabajo del que la estación puede absorber. Sobre esa señal definiremos los tres estados que pide el enunciado: \textbf{normal}, \textbf{advertencia} y \textbf{crítico}.
+La clave de diagnóstico es que \textbf{un tiempo de servicio alto no es un cuello de botella}: significa simplemente que la tarea es larga. El cuello de botella aparece cuando el \emph{tiempo de espera} crece de forma sostenida, porque indica que llega más trabajo del que la estación puede absorber. Sobre esa señal definimos tres estados: \textbf{normal}, \textbf{advertencia} y \textbf{crítico}.
 
 % =============================================================================
 \section{Arquitectura propuesta}
