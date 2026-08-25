@@ -122,8 +122,8 @@ Cada etapa responde solo por su propia cola.
 - [x] Pasar el guion a slides — hay **dos formatos** en `presentacion/`, ver el
       README de esa carpeta: el A (17 láminas, continuo) y el B (21, partido en
       actos, con menos texto por lámina).
-- [ ] **Elegir uno de los dos formatos** y borrar el otro. Recompilar el PDF: el
-      que está versionado todavía trae la numeración de temas que se quitó.
+- [ ] **Elegir uno de los dos formatos** y borrar el otro. Los dos PDF están
+      compilados y al día.
 - [ ] Repartir los turnos de exposición. El formato B los trae escritos en las
       divisorias; hay que confirmarlos o cambiarlos.
 - [ ] Ensayar cronometrado. Con 4 min de demo quedan ~11 min para el resto.
