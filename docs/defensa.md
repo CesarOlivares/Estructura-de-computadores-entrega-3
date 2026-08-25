@@ -1,8 +1,13 @@
-# Defensa — guion de 15 minutos y preguntas probables
+# Defensa — plan de contenido y preguntas probables
 
-> Borrador de la Fase 15. Las slides en PDF se arman desde este guion
-> (una idea por lámina). Ensayar cronometrado: si pasa de 15 min se corta
-> contenido, no se habla más rápido.
+> **El guion hablado ya no está acá.** Vive en
+> [`guion-defensa.md`](guion-defensa.md), escrito palabra por palabra sobre las
+> 21 láminas del deck, con lo que hay que decir en cada una.
+>
+> Este documento se conserva porque tiene el plan por lámina del que salió
+> aquel, el guion detallado de la demo en vivo y las preguntas probables.
+> Ensayar cronometrado: si pasa de 15 min se corta contenido, no se habla más
+> rápido.
 
 ## Guion (15 láminas ≈ 1 min c/u)
 
