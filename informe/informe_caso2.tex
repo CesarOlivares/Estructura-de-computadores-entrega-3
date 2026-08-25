@@ -757,15 +757,559 @@ oficial de Docker, 2024. Disponible en
 
 % =============================================================================
 \appendix
-\section*{Anexos (seleccionar hasta 15 páginas)}
-\begin{itemize}[leftmargin=*]
-  \item \textbf{A.} Contratos completos de las APIs (\texttt{docs/diseno.md} §1).
-  \item \textbf{B.} Esquema SQL y momentos de escritura de eventos (\texttt{docs/diseno.md} §2).
-  \item \textbf{C.} Capturas del tablero: línea normal, advertencia, crítico, Redis caído.
-  \item \textbf{D.} Salidas crudas de los experimentos (\texttt{experimentos/resultados/}).
-  \item \textbf{E.} Historial de commits (dos integrantes, repartidos en el tiempo).
-  \item \textbf{F.} Bitácoras por fase (\texttt{docs/fases/}), incluida la reproducción
-        de la condición de carrera.
+\newpage
+
+% =============================================================================
+\section{Contratos completos de las APIs}
+\label{anexo:apis}
+
+Los tres servicios hablan REST sobre JSON. Todos exponen
+\texttt{GET /salud}~$\rightarrow$~\texttt{200 \{"estado": "ok"\}}, que es lo que
+consultan los \emph{healthchecks} de Docker Compose. El healthcheck mide
+\textbf{vida del proceso}, no disponibilidad de sus dependencias: un servicio que
+responde \texttt{503} explicando que Redis no está sigue estando sano.
+
+\subsection{orders-api (puerto 8000)}
+
+\subsubsection*{\texttt{POST /ordenes} — crear una orden de producción}
+
+\begin{lstlisting}
+Entrada:   { "producto": "jurel-425g", "cantidad": 10 }
+
+Respuesta 201:
+{
+  "id": 1,
+  "producto": "jurel-425g",
+  "cantidad": 10,
+  "estado": "en_proceso",
+  "creada_en": "2026-08-21T17:30:00+00:00",
+  "terminada_en": null
+}
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}lp{9.6cm}@{}}
+\toprule
+\textbf{Campo} & \textbf{Regla de validación} \\
+\midrule
+\texttt{producto} & string no vacío (tampoco solo espacios) \\
+\texttt{cantidad} & entero \textbf{mayor que 0} — latas del lote \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Devuelve \textbf{422} si la entrada no cumple las reglas: nunca \texttt{500} y
+nunca \texttt{201} con datos inválidos. Como efecto colateral, el \texttt{id} se
+encola en \texttt{cola:fileteado} (Redis).
+
+\subsubsection*{\texttt{GET /ordenes/\{id\}} y \texttt{GET /ordenes?estado=...}}
+
+\begin{itemize}[leftmargin=*, itemsep=1pt]
+  \item \texttt{GET /ordenes/\{id\}} $\rightarrow$ \textbf{200} con la orden
+        completa, incluido \texttt{terminada\_en} (\texttt{null} si sigue en
+        proceso). \textbf{404} si el id no existe.
+  \item \texttt{GET /ordenes?estado=<en\_proceso|terminada>} $\rightarrow$
+        \textbf{200} con la lista, filtrada si viene el parámetro.
+        \textbf{422} si \texttt{estado} trae un valor fuera del catálogo.
 \end{itemize}
+
+\subsection{estacion (una imagen, cuatro despliegues)}
+
+Toda la configuración entra por variables de entorno; \textbf{ningún} valor de
+etapa está escrito en el código:
+
+\begin{lstlisting}
+NOMBRE_ETAPA=envasado
+COLA_ENTRADA=cola:envasado
+COLA_SALIDA=cola:sellado
+TIEMPO_CICLO=12
+\end{lstlisting}
+
+\subsubsection*{\texttt{GET /estado}}
+
+\begin{lstlisting}
+{
+  "etapa": "envasado",
+  "replica_id": "envasado-a1b2c3",
+  "procesadas": 17,
+  "ocupada": true,
+  "en_cola": 4
+}
+\end{lstlisting}
+
+\texttt{en\_cola} es el largo actual de la cola de entrada (\texttt{LLEN}).
+\texttt{replica\_id} se genera al arrancar — nombre de etapa más sufijo único —
+y aparece también en cada línea de log, que es lo que permite atribuir cada lote
+procesado a una réplica concreta en el experimento 4.
+
+\subsection{metrics-api (puerto 8001)}
+
+\subsubsection*{\texttt{GET /metricas}}
+
+Por etapa, calculado siempre desde la tabla \texttt{eventos}:
+
+\begin{lstlisting}
+{
+  "ventana_s": 60,
+  "etapas": {
+    "envasado": {
+      "espera_promedio_s": 8.2,
+      "servicio_promedio_s": 12.1,
+      "en_cola": 4,
+      "procesadas": 17
+    }
+  },
+  "lead_time_promedio_s": 31.4
+}
+\end{lstlisting}
+
+\subsubsection*{\texttt{GET /metricas/cuello}}
+
+\begin{lstlisting}
+{
+  "cuello": "esterilizacion",
+  "estados": { "fileteado": "normal", "envasado": "normal",
+               "sellado": "normal", "esterilizacion": "critico" },
+  "razon": "espera promedio 14.3 s en la ventana de 60 s,
+            sobre el umbral critico"
+}
+\end{lstlisting}
+
+\texttt{cuello} es \texttt{null} cuando ninguna etapa supera su umbral de
+advertencia. El campo \texttt{razon} viene del servicio, no de la interfaz: el
+diagnóstico y su justificación salen del mismo lugar.
+
+\subsubsection*{\texttt{GET /metricas/historico}}
+
+Serie temporal muestreada para los gráficos de la interfaz — la rúbrica exige
+histórico además de tiempo real:
+
+\begin{lstlisting}
+{ "puntos": [ { "timestamp": "...", "etapa": "envasado",
+                "espera_promedio_s": 8.2, "en_cola": 4 } ] }
+\end{lstlisting}
+
+\subsection{Códigos HTTP en uso}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}llp{8.2cm}@{}}
+\toprule
+\textbf{Código} & \textbf{Cuándo} & \textbf{Verificado con} \\
+\midrule
+\texttt{201} & Orden creada & \texttt{POST /ordenes} con cuerpo válido \\
+\texttt{422} & Entrada inválida & \texttt{cantidad} $\leq 0$, \texttt{producto} vacío, \texttt{estado} fuera de catálogo \\
+\texttt{404} & Recurso inexistente & \texttt{GET /ordenes/99999} \\
+\texttt{503} & Dependencia caída & \texttt{docker compose stop redis} y luego \texttt{POST /ordenes} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =============================================================================
+\newpage
+\section{Esquema de datos y momentos de escritura}
+\label{anexo:datos}
+
+Dos tablas, y nada más. Todo lo demás se \textbf{calcula} desde \texttt{eventos}:
+el dato guardado dos veces es el dato que termina contradiciéndose.
+
+\begin{lstlisting}[language=SQL]
+CREATE TABLE ordenes (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    producto     TEXT    NOT NULL,
+    cantidad     INTEGER NOT NULL CHECK (cantidad > 0),
+    estado       TEXT    NOT NULL DEFAULT 'en_proceso',
+    creada_en    TEXT    NOT NULL,   -- ISO 8601 UTC
+    terminada_en TEXT                -- NULL hasta terminar
+);
+
+CREATE TABLE eventos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    orden_id   INTEGER NOT NULL REFERENCES ordenes(id),
+    etapa      TEXT    NOT NULL,   -- fileteado | envasado |
+                                   -- sellado | esterilizacion
+    replica_id TEXT    NOT NULL,   -- que replica exacta lo hizo
+    tipo       TEXT    NOT NULL,   -- entra_cola | inicia | termina
+    timestamp  TEXT    NOT NULL    -- ISO 8601 UTC
+);
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}p{4.4cm}p{5.4cm}l@{}}
+\toprule
+\textbf{Momento} & \textbf{Quién escribe} & \textbf{Evento} \\
+\midrule
+La orden entra a una cola & orders-api, o la estación anterior & \texttt{entra\_cola} \\
+Una réplica la saca de la cola (\texttt{BRPOP}) & la réplica & \texttt{inicia} \\
+La réplica termina su ciclo & la réplica & \texttt{termina} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Una orden que recorre las cuatro etapas genera \textbf{12 eventos}, tres por
+etapa. El último \texttt{termina} de esterilización además marca
+\texttt{ordenes.estado = 'terminada'} y escribe \texttt{terminada\_en}.
+
+Los estados de una orden son solo dos, y es deliberado: \texttt{en\_proceso}
+desde su creación y \texttt{terminada} al salir de esterilización. «En qué etapa
+va» \textbf{no} es un estado guardado — se deriva del último evento de esa orden.
+Guardarlo sería mantener dos versiones de la misma verdad.
+
+De aquí salen las tres métricas del informe:
+
+\begin{itemize}[leftmargin=*, itemsep=1pt]
+  \item \textbf{Espera} en una etapa: $t(\texttt{inicia}) - t(\texttt{entra\_cola})$.
+  \item \textbf{Servicio} en una etapa: $t(\texttt{termina}) - t(\texttt{inicia})$.
+  \item \textbf{Lead time} de la orden: $t(\texttt{terminada\_en}) - t(\texttt{creada\_en})$.
+\end{itemize}
+
+Ninguna de las tres se almacena. Que los servicios medidos coincidan con los
+ciclos configurados (4,8 / 12,4 / 3,4 / 7,3 s contra 4 / 12 / 3 / 7) es lo que
+valida la instrumentación contra sí misma.
+
+% =============================================================================
+\newpage
+\section{Capturas del tablero y verificación de errores}
+\label{anexo:capturas}
+
+Las tres capturas se tomaron sobre el sistema corriendo con
+\texttt{docker compose up -d -{}-scale envasado=2}, inyectando carga real por
+\texttt{POST /ordenes}. El color marca \textbf{importancia}, no identidad: lo
+normal es gris y verde, y el color fuerte queda reservado para advertencia y
+crítico, siempre acompañado de ícono y texto.
+
+\textbf{Una aclaración necesaria.} En estas capturas la etapa señalada como
+cuello es \textbf{fileteado}, no esterilización como en los experimentos del
+§\ref{sec:experimentos}. No es una contradicción, y vale la pena explicarlo
+porque es la primera pregunta que aparece al mirarlas: aquí los lotes se
+inyectaron \textbf{en ráfaga} para forzar los estados de advertencia y crítico
+rápidamente, y con llegadas en ráfaga la fila más larga se forma en la primera
+etapa de la línea, que es donde entran. El detector responde correctamente a lo
+que está pasando. Los experimentos del cuerpo usan llegadas \textbf{espaciadas}
+—una cada 5~s— que es el régimen en el que la pregunta del caso tiene sentido, y
+ahí el cuello aparece donde la aritmética de capacidad predice.
+
+\begin{figure}[H]
+\centering
+\IfFileExists{figuras/tablero-normal.png}
+  {\includegraphics[width=0.96\textwidth]{figuras/tablero-normal.png}}
+  {\fbox{\parbox{0.9\textwidth}{\centering\vspace{1cm}Captura pendiente:
+   \texttt{figuras/tablero-normal.png}\vspace{1cm}}}}
+\caption{Línea al día. Ninguna etapa supera su umbral de advertencia; el cartel
+superior lo dice explícitamente y las cuatro etapas aparecen «Al día».}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{figuras/tablero-advertencia.png}
+  {\includegraphics[width=0.96\textwidth]{figuras/tablero-advertencia.png}}
+  {\fbox{\parbox{0.9\textwidth}{\centering\vspace{1cm}Captura pendiente:
+   \texttt{figuras/tablero-advertencia.png}\vspace{1cm}}}}
+\caption{Estado de \textbf{advertencia} tras inyectar 14 lotes espaciados 2~s.
+La espera en fileteado llegó a 6,7~s contra su ciclo de 4~s: pasó el umbral de
+advertencia ($1{,}5\times$) y no el crítico ($3\times$). El cartel nombra la
+etapa, dice cuántos lotes hacen cola y da la cifra; la etapa aparece marcada
+«Acumulando» y su curva de espera empieza a subir.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{figuras/tablero-critico.png}
+  {\includegraphics[width=0.96\textwidth]{figuras/tablero-critico.png}}
+  {\fbox{\parbox{0.9\textwidth}{\centering\vspace{1cm}Captura pendiente:
+   \texttt{figuras/tablero-critico.png}\vspace{1cm}}}}
+\caption{Estado \textbf{crítico} tras una ráfaga de 25 lotes de golpe. La espera
+en fileteado subió a 12,5~s contra su ciclo de 4~s, sobre el umbral crítico
+($3\times$); la etapa queda marcada «Atascada» con 25 lotes en cola. El
+diagnóstico y su razón vienen de \texttt{/metricas/cuello}, no de la interfaz:
+el tablero solo lo muestra.}
+\end{figure}
+
+\subsection{Verificación de los códigos HTTP y de la caída de Redis}
+\label{anexo:http}
+
+El cuarto estado —Redis caído— se documenta con la traza medida contra el
+sistema corriendo en vez de con una captura, porque es donde la evidencia
+realmente está: los tiempos y los códigos son verificables y una imagen del
+tablero no los muestra. La sesión completa, tal como salió:
+
+\begin{lstlisting}
+### CON REDIS ARRIBA
+POST /ordenes            -> HTTP 201  en 0.013184s
+GET  /salud (ordenes)    -> HTTP 200  en 0.003583s
+
+### VALIDACION DE ENTRADA
+POST cantidad=0          -> HTTP 422
+POST producto vacio      -> HTTP 422
+GET  /ordenes/99999      -> HTTP 404
+GET  /ordenes?estado=xxx -> HTTP 422
+
+### DETENIENDO REDIS   (docker compose stop redis)
+POST /ordenes            -> HTTP 503  en 2.005218s
+  {"detail":"sin conexion con el servicio de coordinacion (Redis);
+             intente de nuevo"}
+GET  /salud (ordenes)    -> HTTP 200  en 0.003470s
+GET  /metricas/cuello    -> HTTP 200  en 2.011873s
+
+### LEVANTANDO REDIS   (docker compose start redis)
+POST /ordenes            -> HTTP 201  en 0.012831s
+\end{lstlisting}
+
+Tres cosas que esta traza prueba y que son el punto del §\ref{sec:resiliencia}:
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt]
+  \item \textbf{El plazo duro funciona.} El \texttt{503} vuelve en
+        \textbf{2,005~s}, no en los 46~s que medimos antes de descubrir que el
+        cuelgue estaba en la resolución DNS y no en el socket. El
+        \texttt{PLAZO\_REDIS\_S} configurado es 2~s y se cumple con cinco
+        milésimas de margen.
+  \item \textbf{El mensaje nombra al culpable real}, en castellano y sin
+        \emph{traceback}: «sin conexión con el servicio de coordinación
+        (Redis)». La interfaz muestra ese mismo texto, que viene del servicio.
+  \item \textbf{El healthcheck sigue en 200 y en 3~ms.} El servicio de órdenes
+        está \emph{vivo}: sabe que le falta una dependencia y lo dice. Si el
+        healthcheck comprobara dependencias, Docker habría matado y reiniciado
+        un contenedor que funcionaba perfectamente.
+\end{enumerate}
+
+Al volver a levantar Redis, la creación de órdenes responde \texttt{201} en 13~ms
+sin reiniciar nada: la línea continúa donde quedó, porque las estaciones no
+tienen estado propio y reconectan solas.
+
+% =============================================================================
+\newpage
+\section{Salidas crudas de los experimentos}
+\label{anexo:crudos}
+
+Todo lo que sigue está versionado en \texttt{experimentos/resultados/} y se
+reproduce con los guiones de \texttt{experimentos/}. Las figuras del cuerpo del
+informe se generan desde estos mismos archivos con
+\texttt{informe/figuras/generar\_figuras.py}: no hay ningún número transcrito a
+mano entre la medición y el gráfico.
+
+\subsection{Experimentos 1--3: el cuello se desplaza al escalar}
+
+\begin{lstlisting}
+--- exp1-envasado1-cuello.json ---
+{"cuello":"envasado",
+ "estados":{"fileteado":"normal","envasado":"critico",
+            "sellado":"normal","esterilizacion":"normal"},
+ "razon":"espera promedio 67.78 s en la ventana de 60 s,
+          sobre el umbral critico (12 s de ciclo x 3)",
+ "ventana_s":60.0}
+
+--- exp2-envasado2-cuello.json ---
+{"cuello":"esterilizacion",
+ "estados":{"fileteado":"normal","envasado":"normal",
+            "sellado":"normal","esterilizacion":"critico"},
+ "razon":"espera promedio 25.21 s en la ventana de 60 s,
+          sobre el umbral critico (7 s de ciclo x 3)",
+ "ventana_s":60.0}
+
+--- exp2-envasado2-metricas.json ---
+{"ventana_s":60.0,"etapas":{
+  "fileteado":     {"espera_promedio_s":0.18,"servicio_promedio_s":4.96,
+                    "en_cola":0,"procesadas":31},
+  "envasado":      {"espera_promedio_s":17.52,"servicio_promedio_s":12.58,
+                    "en_cola":4,"procesadas":25},
+  "sellado":       {"espera_promedio_s":0.74,"servicio_promedio_s":3.38,
+                    "en_cola":0,"procesadas":24},
+  "esterilizacion":{"espera_promedio_s":25.21,"servicio_promedio_s":7.25,
+                    "en_cola":4,"procesadas":22}}}
+
+--- exp3-envasado3-cuello.json ---
+{"cuello":"esterilizacion",
+ "estados":{"fileteado":"normal","envasado":"normal",
+            "sellado":"normal","esterilizacion":"critico"},
+ "razon":"espera promedio 34.5 s en la ventana de 60 s,
+          sobre el umbral critico (7 s de ciclo x 3)",
+ "ventana_s":60.0}
+
+--- exp3-envasado3-metricas.json ---
+{"ventana_s":60.0,"etapas":{
+  "fileteado":     {"espera_promedio_s":0.22,"servicio_promedio_s":4.59,
+                    "en_cola":0,"procesadas":31},
+  "envasado":      {"espera_promedio_s":0.73,"servicio_promedio_s":12.24,
+                    "en_cola":0,"procesadas":29},
+  "sellado":       {"espera_promedio_s":0.89,"servicio_promedio_s":3.33,
+                    "en_cola":0,"procesadas":28},
+  "esterilizacion":{"espera_promedio_s":34.5,"servicio_promedio_s":7.3,
+                    "en_cola":8,"procesadas":26}}}
+\end{lstlisting}
+
+\textbf{Limitación conocida.} El archivo
+\texttt{exp1-envasado1-metricas.json} quedó \textbf{vacío} al capturarlo: la
+consulta se hizo después de que la ventana móvil de 60~s ya se había vaciado.
+El diagnóstico de cuello de ese experimento (\texttt{exp1-envasado1-cuello.json})
+sí quedó guardado, y es de donde sale la cifra de 67,8~s de espera. Los valores
+por etapa del experimento 1 en el cuerpo del informe provienen de esa corrida
+registrada en la bitácora de la Fase 14, no de un archivo crudo. Se declara
+aquí en vez de rehacerlo silenciosamente.
+
+\subsection{Experimento 4: balanceo con una réplica lenta}
+
+\begin{lstlisting}
+--- exp4-replica-lenta.txt ---
+envasado-88d690e0069d          11
+envasado-b3573cf68ffd          12
+envasado-lento-8550b032c252     7
+
+ciclos: envasado=6s lento=12s, N=30 ordenes directas a cola:envasado
+esperado round-robin: 10/10/10 - esperado por demanda: ~12/12/6
+\end{lstlisting}
+
+El reparto medido fue 11/12/7 contra el 10/10/10 que habría dado un
+round-robin. La réplica lenta procesó un 40~\% menos que las rápidas sin que
+nadie programara esa proporción: emergió de que cada réplica reclama un lote
+solo cuando queda libre.
+
+\subsection{Experimento 5: saturación y recuperación automática}
+
+Ráfaga de 25 órdenes de golpe, sondeando \texttt{/metricas/cuello} cada 15~s.
+
+\begin{lstlisting}
+--- exp5-saturacion.txt (extracto) ---
+t=1s    cuello=None       fileteado:normal       envasado:normal
+t=17s   cuello=fileteado  fileteado:advertencia  envasado:normal
+t=32s   cuello=fileteado  fileteado:critico      envasado:normal
+t=48s   cuello=fileteado  fileteado:critico      envasado:normal
+t=63s   cuello=fileteado  fileteado:critico      envasado:advertencia
+...
+t=278s  cuello=None       todas:normal
+\end{lstlisting}
+
+La congestión recorre la línea como una ola: aparece primero en fileteado, que
+es donde entran los lotes, y se propaga aguas abajo. A los 278~s todo vuelve a
+normal \textbf{sin intervención}, porque las esperas antiguas salieron de la
+ventana móvil de 60~s. El sistema no «se arregla»: deja de estar congestionado y
+la métrica lo refleja.
+
+% =============================================================================
+\newpage
+\section{Historial de commits}
+\label{anexo:commits}
+
+El repositorio es
+\url{https://github.com/CesarOlivares/Estructura-de-computadores-entrega-3}.
+El trabajo está repartido entre los dos integrantes y distribuido en el tiempo,
+no concentrado en una sesión final.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\textbf{Autor} & \textbf{Commits} & \textbf{Aporte principal} \\
+\midrule
+César Olivares & 27 & Servicios, Redis, persistencia, métricas, informe \\
+Simón García-Huidobro & 15 & Tablero Streamlit, demo de la carrera, lanzadores, defensa \\
+\midrule
+\textbf{Total} & \textbf{42} & 21--25 de agosto de 2026 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los tres primeros commits son cargas por la interfaz web de GitHub, anteriores a
+fijar la convención del equipo. Desde \texttt{chore: initialize repository} en
+adelante se usa Conventional Commits, con un commit por fase verificada.
+
+\begin{lstlisting}
+7a9d44b 2026-08-21 Cesar   Add files via upload
+b05cb63 2026-08-21 Cesar   Add files via upload
+fba5747 2026-08-21 Cesar   Add files via upload
+1f3b57c 2026-08-21 Cesar   chore: initialize repository
+bb87555 2026-08-21 Cesar   demo: throwaway queue prototype
+176a0b1 2026-08-21 Cesar   docs: close phase 0 environment log
+4330ff4 2026-08-21 Cesar   docs: define api contracts and data model
+8253914 2026-08-21 Cesar   feat: minimal orders api with validation
+6398e77 2026-08-21 Cesar   feat: add redis queue and healthcheck
+ec6c211 2026-08-21 Cesar   feat: station worker consuming orders
+05efcc9 2026-08-21 Cesar   feat: reproduce race condition with naive claiming
+3f1c79b 2026-08-21 Cesar   feat: implement atomic order claiming
+c9c6fc3 2026-08-21 Cesar   test: verify no duplicate processing under load
+d178cec 2026-08-21 Cesar   feat: scale stations and expose replica identity
+e435d42 2026-08-21 Cesar   feat: dynamic load balancing with configurable times
+1c8ce5a 2026-08-21 Cesar   feat: persist orders and events in sqlite
+28db438 2026-08-21 Cesar   feat: metrics service with lead time breakdown
+b77b6a1 2026-08-21 Cesar   feat: bottleneck detection with sliding window
+c937045 2026-08-21 Simon   feat: streamlit operations dashboard
+3e9abf0 2026-08-21 Simon   docs: readme with setup and run instructions
+0b74b9b 2026-08-22 Simon   docs: align phase 11 log with team template
+f3d8d74 2026-08-22 Cesar   feat: error handling and http status codes
+44181d2 2026-08-22 Cesar   docs: env example and reproducibility notes
+51858f2 2026-08-22 Cesar   docs: readme verified on clean clone
+02bfe33 2026-08-22 Cesar   docs: experiment results for 1, 2 and 3 replicas
+7182916 2026-08-22 Cesar   docs: architecture decisions and assumptions
+abfb9bb 2026-08-23 Simon   fix: count processed orders per stage
+1d0d90c 2026-08-23 Simon   refactor: extract claim strategies into shared module
+5d4b125 2026-08-23 Simon   feat: race condition demo in the dashboard
+4fbcd17 2026-08-23 Simon   feat: one-click launcher for windows, macos, linux
+d99d7ac 2026-08-23 Simon   docs: phase 16 log, readme and defence guide
+25e84cb 2026-08-23 Cesar   chore: tidy repo layout for delivery
+e060912 2026-08-23 Cesar   docs: report with charts, diagrams and bibliography
+08c47c3 2026-08-23 Cesar   docs: defense slides with charts, exported to pdf
+ce6a19d 2026-08-23 Cesar   docs: demo slide covers the race comparison
+7ed4fe4 2026-08-25 Simon   chore: move course material into enunciado/
+9d1ae9f 2026-08-25 Simon   chore: drop the internal working plan
+603c0a5 2026-08-25 Simon   docs: readme points to the deliverables
+669762a 2026-08-25 Simon   docs: slides drop topic numbering, compile on Overleaf
+fff994f 2026-08-25 Simon   docs: second format for the defence slides
+86cc321 2026-08-25 Simon   fix: slides embed a font dvipdfmx can write
+95b4894 2026-08-25 Simon   docs: both slide PDFs compiled and current
+\end{lstlisting}
+
+La condición de carrera está en el historial como dos commits consecutivos:
+\texttt{05efcc9} la reproduce con el reclamo ingenuo y \texttt{3f1c79b} la
+elimina con extracción atómica. No se resolvió el problema antes de tenerlo.
+
+% =============================================================================
+\newpage
+\section{Bitácoras por fase}
+\label{anexo:fases}
+
+El proyecto se organizó en fases; cada una deja una bitácora en
+\texttt{docs/fases/} escrita al cerrarla, con objetivo, qué se logró,
+dificultades encontradas y pendientes. Son el insumo directo del análisis
+crítico del §\ref{sec:dificultades} de este informe.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}lp{7.4cm}l@{}}
+\toprule
+\textbf{Archivo} & \textbf{Fase} & \textbf{Estado} \\
+\midrule
+\texttt{fase-0-entorno.md} & Entorno y repositorio & Cerrada 21/08 \\
+\texttt{fase-2-diseno.md} & Diseño en papel & Diseño listo \\
+\texttt{fase-3-orders-api.md} & \texttt{orders-api} mínima en Docker & Cerrada 21/08 \\
+\texttt{fase-4-redis.md} & Redis y la cola & Cerrada 21/08 \\
+\texttt{fase-5-estacion.md} & Una estación consume & Cerrada 21/08 \\
+\texttt{fase-6-carrera.md} & Condición de carrera: provocarla y resolverla & Cerrada 21/08 \\
+\texttt{fase-7-balanceo.md} & Balanceo dinámico con N réplicas & Cerrada 21/08 \\
+\texttt{fase-8-persistencia.md} & Persistencia & Cerrada 21/08 \\
+\texttt{fase-9-metricas.md} & Métricas & Cerrada 21/08 \\
+\texttt{fase-10-cuello-de-botella.md} & Cuello de botella y estados & Cerrada 21/08 \\
+\texttt{fase-11-ui.md} & Interfaz Streamlit & Cerrada 21/08 \\
+\texttt{fase-12-errores.md} & Errores, logging y healthchecks & Cerrada 22/08 \\
+\texttt{fase-13-reproducibilidad.md} & Reproducibilidad & Cerrada 22/08 \\
+\texttt{fase-14-experimentos.md} & Experimentos & Cerrada 22/08 \\
+\texttt{fase-15-informe.md} & Informe y defensa & En curso \\
+\texttt{fase-16-demostracion-ui.md} & La demostración de la carrera en el tablero & Cerrada 23/08 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Fase 1 no tiene bitácora propia: fue el prototipo desechable de cola y
+trabajadores que vive en \texttt{demo/} con su propio README, y su resultado
+(reparto 5/5/5 con tres trabajadores iguales, sin duplicados) quedó registrado
+ahí. La Fase 2 aparece como «diseño listo» y no «cerrada» a propósito: la prueba
+de equipo que el plan exige para darla por terminada —ambos integrantes
+respondiendo el cuestionario de \texttt{docs/diseno.md} §6 sin mirar el
+documento— es la única condición de cierre que quedó pendiente.
 
 \end{document}
