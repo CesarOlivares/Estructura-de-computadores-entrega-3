@@ -3,6 +3,13 @@
 Guion hablado para el deck de `presentacion/presentacion_caso2_alt.tex` (21 láminas).
 Está escrito para decirse en voz alta, no para leerse en pantalla.
 
+> **Para imprimir y llevar a la defensa:** [`presentacion/guion-defensa.pdf`](../presentacion/guion-defensa.pdf).
+>
+> Esta versión en Markdown existe para leerla en GitHub. El mismo texto vive en
+> `presentacion/guion-defensa.tex`, y **ese es el que manda**: es el que produce el PDF.
+> Si hay que corregir algo, se corrige allá, se recompila y después se refleja acá.
+> Son dos copias y pueden desincronizarse.
+
 **Duración.** El guion tiene **1.762 palabras** habladas. A 145 palabras por minuto, que
 es un ritmo de exposición normal, son **12 minutos**. Con 4 de demo da **16**, o sea
 **uno de más**. Hay que ganar ese minuto de una de estas dos formas, y decidirlo en el

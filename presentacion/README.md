@@ -8,6 +8,12 @@ Hay que **elegir uno** antes de la defensa; el otro se borra.
 | **A** — minimalista continuo | [`presentacion_caso2.tex`](presentacion_caso2.tex) | [`presentacion_caso2.pdf`](presentacion_caso2.pdf) | 17 |
 | **B** — editorial por actos | [`presentacion_caso2_alt.tex`](presentacion_caso2_alt.tex) | [`presentacion_caso2_alt.pdf`](presentacion_caso2_alt.pdf) | 21 (5 son divisorias) |
 
+El **guion hablado** del formato B —qué decir en cada lámina, más las preguntas
+probables— está en [`guion-defensa.pdf`](guion-defensa.pdf), para imprimir y
+llevar a la defensa. Su fuente es [`guion-defensa.tex`](guion-defensa.tex), y
+hay una copia en Markdown en [`docs/guion-defensa.md`](../docs/guion-defensa.md)
+para leerla en GitHub.
+
 ## En qué se diferencian
 
 **Formato A.** Láminas seguidas, sin cortes. Título en versalitas con filete de
