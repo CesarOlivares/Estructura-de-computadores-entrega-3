@@ -29,13 +29,20 @@
        ItalicFont = *-Italic, BoldItalicFont = *-BoldItalic]}
     {}}
 
-% La condensada de los números de lámina y las cifras grandes.
-\IfFontExistsTF{Bahnschrift}
-  {\newfontfamily\dinfont{Bahnschrift}}
-  {\IfFontExistsTF{RobotoCondensed-Regular.ttf}
-    {\newfontfamily\dinfont{RobotoCondensed}[
-       Extension = .ttf, UprightFont = *-Regular, BoldFont = *-Bold]}
-    {\newcommand{\dinfont}{\sffamily}}}
+% La condensada de los titulares y las cifras grandes: Roboto Condensed, del
+% árbol de TeX Live.
+%
+% Antes era Bahnschrift, la condensada de Windows. Se cambió porque es una
+% fuente variable en un solo archivo y dvipdfmx no sabe incrustarla: la lee
+% como una colección TTC y aborta con «Invalid TTC index / Invalid font: -1».
+% Compilaba en la máquina donde se generó el PDF versionado, pero no en la
+% otra. Roboto Condensed es estática, da el mismo aire DIN, y sale igual acá
+% y en Overleaf.
+\IfFontExistsTF{RobotoCondensed-Regular.otf}
+  {\newfontfamily\dinfont{RobotoCondensed}[
+     Extension = .otf, UprightFont = *-Regular, BoldFont = *-Bold,
+     ItalicFont = *-Italic]}
+  {\newcommand{\dinfont}{\sffamily}}
 
 % Las figuras se buscan igual desde presentacion/ o desde la raíz.
 \graphicspath{{../informe/figuras/}{informe/figuras/}{figuras/}{./}}

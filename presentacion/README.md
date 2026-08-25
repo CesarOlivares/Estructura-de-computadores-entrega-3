@@ -3,10 +3,10 @@
 Dos formatos de la misma charla, con el mismo contenido y las mismas figuras.
 Hay que **elegir uno** antes de la defensa; el otro se borra.
 
-| Archivo | Formato | Láminas |
-|---|---|---|
-| [`presentacion_caso2.tex`](presentacion_caso2.tex) | **A** — minimalista continuo | 17 |
-| [`presentacion_caso2_alt.tex`](presentacion_caso2_alt.tex) | **B** — editorial por actos | 21 (5 son divisorias) |
+| Formato | Fuente | PDF | Láminas |
+|---|---|---|---|
+| **A** — minimalista continuo | [`presentacion_caso2.tex`](presentacion_caso2.tex) | [`presentacion_caso2.pdf`](presentacion_caso2.pdf) | 17 |
+| **B** — editorial por actos | [`presentacion_caso2_alt.tex`](presentacion_caso2_alt.tex) | [`presentacion_caso2_alt.pdf`](presentacion_caso2_alt.pdf) | 21 (5 son divisorias) |
 
 ## En qué se diferencian
 
@@ -40,8 +40,14 @@ xelatex presentacion_caso2_alt.tex
 xelatex presentacion_caso2_alt.tex   # segunda pasada, para el total de láminas
 ```
 
-Requiere MiKTeX o TeX Live con `beamer`, `fontspec`, `babel-spanish`, `tikz` y
-`booktabs`.
+Requiere MiKTeX o TeX Live con `beamer`, `fontspec`, `babel-spanish`, `tikz`,
+`booktabs`, `lato` y `roboto`. En MiKTeX conviene dejar la instalación
+automática de paquetes activada, o la primera compilación se queda esperando
+una respuesta:
+
+```bash
+initexmf --set-config-value "[MPM]AutoInstall=1"
+```
 
 ### Overleaf
 
@@ -50,23 +56,36 @@ Requiere MiKTeX o TeX Live con `beamer`, `fontspec`, `babel-spanish`, `tikz` y
 
 ## Sobre las tipografías
 
-El diseño se hizo con las fuentes de Windows: **Segoe UI Light** para los
-titulares, **Segoe UI Semibold** para los antetítulos y **Bahnschrift** para las
-cifras grandes. Overleaf no las tiene, y sin previsión caería todo a Latin
-Modern, que arruina el diseño.
+El texto usa **Segoe UI**, con **Light** en los titulares y **Semibold**
+espaciado en los antetítulos. Overleaf no tiene las fuentes de Microsoft, y sin
+previsión caería todo a Latin Modern, que arruina el diseño. Por eso el bloque
+de tipografía de ambos archivos es una cascada que se resuelve sola según dónde
+se compile:
 
-Por eso el bloque de tipografía de ambos archivos es una cascada de tres
-niveles, que se resuelve sola según dónde se compile:
-
-1. Segoe UI + Bahnschrift — las de Windows, el diseño original.
-2. **Lato** (tiene Light y Semibold) + **Roboto Condensed** — libres, incluidas
-   en TeX Live completo, que es lo que corre Overleaf.
+1. **Segoe UI** Light / Semibold — Windows, el diseño original.
+2. **Lato** — libre, tiene Light y Semibold, y viene en TeX Live completo, que
+   es lo que corre Overleaf.
 3. Las genéricas de LaTeX, para que la compilación nunca falle por una fuente
    que falta.
 
-No hay que instalar ni subir ningún archivo de fuente: los paquetes `lato` y
-`roboto` ya están en Overleaf. Tampoco se pueden versionar las de Microsoft en
-un repositorio público, que es la otra razón para la cascada.
+No hay que instalar ni subir ningún archivo: el paquete `lato` ya está en
+Overleaf. Tampoco se podrían versionar las de Microsoft en un repositorio
+público, que es la otra razón para la cascada.
+
+### Por qué las cifras grandes no usan Bahnschrift
+
+La condensada es **Roboto Condensed**, del árbol de TeX Live, y **sin
+alternativa de Windows a propósito**.
+
+Bahnschrift es la condensada natural en Windows y es la que usaba el formato A,
+pero es una **fuente variable**: un solo archivo con todos los pesos dentro.
+`dvipdfmx` no sabe incrustarla — la lee como si fuera una colección TTC y aborta
+con `Invalid TTC index` / `Invalid font: -1 (17)`. Compilaba en la máquina donde
+se generó el primer PDF y fallaba en la otra, que es la peor clase de
+dependencia oculta.
+
+Roboto Condensed es estática, da el mismo aire DIN, y al venir del árbol de TeX
+Live sale idéntica en las dos máquinas y en Overleaf.
 
 ## Figuras
 
