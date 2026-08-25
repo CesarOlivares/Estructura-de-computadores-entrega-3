@@ -19,13 +19,12 @@ cada uno anunciado por una lámina a fondo tinta. Titulares en caja mixta con
 tipografía Light, antetítulo espaciado, y una franja «clave» al pie de cada
 lámina con la frase que hay que decir en voz alta. Menos texto por lámina.
 
-Las divisorias del formato B llevan una línea **«Expone: …»**. La rúbrica evalúa
-*Participación del equipo* («todos los integrantes exponen equilibradamente»), y
-tenerlo escrito evita que en la defensa uno se coma el turno del otro. El reparto
-que está escrito es una propuesta — cámbienlo si prefieren otro.
-
 Ninguno de los dos numera los temas. El formato A lo hacía y la numeración no
 coincidía con la del pie de página, porque contaba temas y no láminas.
+
+El reparto de turnos de exposición **no está escrito en las láminas**, pero la
+rúbrica sí lo evalúa: *Participación del equipo*, 10 pts, «todos los integrantes
+exponen equilibradamente». Conviene acordarlo antes y anotarlo aparte.
 
 ## Compilar
 

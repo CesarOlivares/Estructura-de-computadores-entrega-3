@@ -142,7 +142,7 @@
   \end{minipage}\\[0.5cm]}
 
 % ── Lámina de acto (fondo tinta) ─────────────────────────────────────────────
-\newcommand{\acto}[4]{%
+\newcommand{\acto}[3]{%
   {\setbeamercolor{background canvas}{bg=tinta}
    \begin{frame}[plain]
    \vfill
@@ -150,8 +150,7 @@
      {\antetitulo\scriptsize\color{tealu}\MakeUppercase{#1}}\\[12pt]
      {\ligera\fontsize{30}{34}\selectfont\color{white}#2}\\[14pt]
      {\color{tealu}\rule{2.6cm}{1.8pt}}\\[12pt]
-     {\small\color{grilla}#3}\\[16pt]
-     {\antetitulo\tiny\color{suave}\MakeUppercase{Expone: #4}}
+     {\small\color{grilla}#3}
    \end{minipage}
    \vfill
    \end{frame}}}
@@ -210,7 +209,7 @@
 \vspace{22pt}
 {\small\color{white}\textbf{César Olivares · Simón García-Huidobro}\par}
 \vspace{5pt}
-{\footnotesize\color{suave}Evaluación 3 · Caso 2 · ECSD 2026-1 · Profesor: Daniel Calderón R. · 24 de agosto de 2026\par}
+{\footnotesize\color{suave}Evaluación 3 · Caso 2 · ECSD 2026-1 · Profesor: Daniel Calderón R. · 26 de agosto de 2026\par}
 \end{minipage}
 \vfill
 \end{frame}}
@@ -219,7 +218,6 @@
 \renewcommand{\actoactual}{I · El problema}
 \acto{Primer acto}{El problema}
      {Qué simula el sistema, y la pregunta que la simulación tiene que responder.}
-     {Simón}
 
 % ── La línea ─────────────────────────────────────────────────────────────────
 \begin{frame}
@@ -258,7 +256,6 @@
 \renewcommand{\actoactual}{II · Cómo está construido}
 \acto{Segundo acto}{Cómo está construido}
      {Cinco servicios, tres nodos, y una decisión de diseño que sostiene todo el resto.}
-     {César}
 
 % ── Arquitectura ─────────────────────────────────────────────────────────────
 \begin{frame}[fragile]
@@ -374,7 +371,6 @@
 \renewcommand{\actoactual}{Demo en vivo}
 \acto{Interludio}{Demo en vivo}
      {El sistema completo corriendo: tablero en localhost:8501, con lotes reales entrando a la línea.}
-     {Ambos}
 
 % ── Guion de demo ────────────────────────────────────────────────────────────
 \begin{frame}
@@ -401,7 +397,6 @@
 \renewcommand{\actoactual}{III · Lo que medimos}
 \acto{Tercer acto}{Lo que medimos}
      {Cinco experimentos reproducibles. Ninguna afirmación de aquí en adelante es una opinión.}
-     {Simón}
 
 % ── Aritmética ───────────────────────────────────────────────────────────────
 \begin{frame}
@@ -497,7 +492,6 @@
 \renewcommand{\actoactual}{IV · Lo que aprendimos}
 \acto{Cuarto acto}{Lo que aprendimos}
      {Los límites que conocemos, y las cinco frases que resumen el proyecto.}
-     {César}
 
 % ── Resiliencia ──────────────────────────────────────────────────────────────
 \begin{frame}[fragile]

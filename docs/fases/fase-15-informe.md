@@ -26,12 +26,23 @@ del código.
         1→2→3 réplicas).
 - [x] **Guion de defensa** en `docs/defensa.md`: 15 láminas (1 min c/u),
       guion de demo en vivo con plan B, y preguntas probables con respuestas.
-- [ ] Compilar el .tex (Overleaf o pdflatex) y ajustar al límite de páginas.
-- [ ] Capturas del tablero para los anexos (normal / advertencia / crítico /
-      Redis caído).
-- [ ] Pasar el guion a slides PDF y **ensayar cronometrado** (si pasa de
-      15 min, cortar contenido, no hablar más rápido).
-- [ ] `.zip` del código fuente.
+- [x] Compilar el .tex con XeLaTeX y ajustar al límite de páginas: **31 págs**
+      = 15 de cuerpo + 15 de anexos (más portada). Justo en el máximo.
+- [x] **Anexos escritos como contenido**, no como índice de punteros: contratos
+      completos de las APIs (A), esquema SQL y momentos de escritura (B),
+      capturas del tablero (C), salidas crudas de los experimentos (D),
+      historial de commits (E) y bitácoras por fase (F).
+- [x] Capturas del tablero: normal / advertencia / crítico, tomadas del sistema
+      corriendo con carga real inyectada por `POST /ordenes`.
+      El cuarto caso —Redis caído— quedó como **traza HTTP medida** en vez de
+      captura: el tablero tarda más en renderizar que lo que espera un
+      navegador headless, y la evidencia real son los códigos y los tiempos
+      (503 en 2,005 s, `/salud` en 200, recuperación en 13 ms).
+- [x] Pasar el guion a slides PDF — dos formatos en `presentacion/`.
+- [ ] **Elegir uno de los dos formatos** y borrar el otro.
+- [ ] **Ensayar cronometrado** (si pasa de 15 min, cortar contenido, no hablar
+      más rápido).
+- [x] `.zip` del código fuente: se genera con `git archive` (ver README).
 - [ ] Prueba de equipo de la Fase 2 (cuestionario de `docs/diseno.md` §6).
 - [ ] Prueba de clon limpio en la máquina 2.
 

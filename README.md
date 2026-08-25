@@ -34,6 +34,16 @@ Las fuentes LaTeX de ambos documentos están junto a sus PDF. El material que
 entregó el curso (enunciado, resumen del caso y rúbrica) está en
 [`enunciado/`](enunciado/).
 
+El `.zip` del código fuente que pide el enunciado se genera desde el propio
+repositorio, así que nunca queda desincronizado del código:
+
+```bash
+git archive --format=zip --prefix=caso2-linea-produccion/ -o caso2-codigo-fuente.zip HEAD
+```
+
+Incluye solo lo versionado: ni artefactos de compilación, ni `.git`, ni la base
+de datos generada en ejecución.
+
 ---
 
 ## Cómo obtenerlo

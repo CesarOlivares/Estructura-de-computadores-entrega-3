@@ -124,8 +124,7 @@ Cada etapa responde solo por su propia cola.
       actos, con menos texto por lámina).
 - [ ] **Elegir uno de los dos formatos** y borrar el otro. Los dos PDF están
       compilados y al día.
-- [ ] Repartir los turnos de exposición. El formato B los trae escritos en las
-      divisorias; hay que confirmarlos o cambiarlos.
+- [ ] Repartir los turnos de exposición (rúbrica: *Participación del equipo*).
 - [ ] Ensayar cronometrado. Con 4 min de demo quedan ~11 min para el resto.
 - [x] Compilar `informe/informe_caso2.tex` a PDF con gráficos de resultados
       y bibliografía — falta completar capturas de anexos.
