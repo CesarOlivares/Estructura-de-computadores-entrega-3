@@ -487,9 +487,9 @@ estrictamente superior en este caso.
 El problema de coordinación —que dos réplicas no tomen la misma orden— se
 abordó en dos pasos deliberados, ambos preservados en el historial de commits:
 
-\textbf{Versión ingenua (commiteada rota a propósito).} Reclamar una orden en
-dos operaciones: mirar la cola (\texttt{LRANGE}) y después sacar el elemento
-(\texttt{LREM}). Entre ambas hay una ventana en la que otra réplica ve
+\textbf{Versión no atómica (commiteada con el defecto, a propósito).} Reclamar
+una orden en dos operaciones: mirar la cola (\texttt{LRANGE}) y después sacar
+el elemento (\texttt{LREM}). Entre ambas hay una ventana en la que otra réplica ve
 \emph{la misma} orden. Con 3 réplicas y 200 órdenes, el experimento reprodujo
 órdenes procesadas dos veces — la evidencia de que el problema es real y no
 teórico.
@@ -509,7 +509,7 @@ aunque haya varias esperando sobre la misma cola. Mismo experimento:
   mal/.style={font=\scriptsize\bfseries, text=red!70!black},
   bien/.style={font=\scriptsize\bfseries, text=usachteal}]
   % Panel izquierdo: ingenua
-  \node (tit1) [font=\scriptsize\bfseries, text=usachdark] at (0,2.1) {Versión ingenua: mirar y sacar (2 pasos)};
+  \node (tit1) [font=\scriptsize\bfseries, text=usachdark] at (0,2.1) {Reclamo no atómico: mirar y sacar (2 pasos)};
   \node (colaA) [cola] at (0,1.3) {cola: lote \#42};
   \node (r1a) [rep] at (-1.6,-0.2) {réplica 1};
   \node (r2a) [rep] at (1.6,-0.2) {réplica 2};
@@ -517,7 +517,7 @@ aunque haya varias esperando sobre la misma cola. Mismo experimento:
   \draw [arrow] (colaA.south east) -- (r2a.north) node[msg] {ve \#42};
   \node (dup) [mal] at (0,-1.05) {ambas procesan \#42: duplicado};
   % Panel derecho: atómica
-  \node (tit2) [font=\scriptsize\bfseries, text=usachdark] at (7.6,2.1) {Versión atómica: \texttt{BRPOP} (1 paso)};
+  \node (tit2) [font=\scriptsize\bfseries, text=usachdark] at (7.6,2.1) {Extracción atómica: \texttt{BRPOP} (1 paso)};
   \node (colaB) [cola] at (7.6,1.3) {cola: \#42, \#43};
   \node (r1b) [rep] at (6.0,-0.2) {réplica 1};
   \node (r2b) [rep] at (9.2,-0.2) {réplica 2};
@@ -828,7 +828,7 @@ upgrades locales: cada mejora toca un nodo sin rediseñar los demás.
         de la siguiente. Lección: el ``hola mundo'' de infraestructura es
         parte del proyecto y hay que presupuestarlo.
   \item \textbf{La condición de carrera hubo que fabricarla para verla.} Con
-        el reclamo ingenuo, la ventana entre mirar y sacar es de
+        el reclamo no atómico, la ventana entre mirar y sacar es de
         microsegundos: sin duplicados no hay demostración. Se ensanchó con una
         espera artificial configurable (\texttt{DEMORA\_INGENUA}) hasta
         reproducir duplicados de forma confiable, y ambas versiones quedaron
@@ -878,7 +878,7 @@ El sistema resuelve el caso de punta a punta y sus afirmaciones
 están respaldadas por mediciones reproducibles: el reparto por demanda
 balancea sin conocer las réplicas (11/12/7 con una réplica lenta), la
 extracción atómica elimina la condición de carrera (0 duplicados en 200
-órdenes, contra duplicados reproducibles de la versión ingenua), el criterio de
+órdenes, contra duplicados reproducibles de la versión no atómica), el criterio de
 espera en ventana móvil detecta el cuello de botella correcto incluso cuando no
 es la etapa más lenta, y se recupera solo al bajar la carga. El resultado
 central — el cuello se desplaza de envasado a esterilización al escalar de 1 a
@@ -1426,7 +1426,7 @@ fff994f 2026-08-25 Simon   docs: second format for the defence slides
 \end{lstlisting}
 
 La condición de carrera está en el historial como dos commits consecutivos:
-\texttt{05efcc9} la reproduce con el reclamo ingenuo y \texttt{3f1c79b} la
+\texttt{05efcc9} la reproduce con el reclamo no atómico y \texttt{3f1c79b} la
 elimina con extracción atómica. No se resolvió el problema antes de tenerlo.
 
 % =============================================================================
