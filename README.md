@@ -30,8 +30,8 @@ que el reparto se adapta solo a la velocidad de cada una.
 | **Presentación** | [`presentacion/presentacion_caso2.pdf`](presentacion/presentacion_caso2.pdf) |
 | **Código y demo** | este repositorio — ver [Ejecución](#ejecución) |
 
-Las fuentes LaTeX de ambos documentos están junto a sus PDF. El material que
-entregó el curso (enunciado, resumen del caso y rúbrica) está en
+La fuente LaTeX del informe está junto a su PDF, en [`informe/`](informe/). El
+material que entregó el curso (enunciado, resumen del caso y rúbrica) está en
 [`enunciado/`](enunciado/).
 
 El `.zip` del código fuente que pide el enunciado se genera desde el propio
@@ -299,11 +299,10 @@ servicios/
   ui/          tablero Streamlit (puerto 8501)
 docs/
   diseno.md    contratos de las APIs, esquema de datos, criterio de cuello
-  defensa.md   guion de la defensa
   fases/       bitácora por fase: qué se logró, dificultades, pendientes
 informe/       informe del caso 2 en PDF, su fuente LaTeX y las figuras
                (generar_figuras.py las reconstruye desde los resultados medidos)
-presentacion/  slides de la defensa en PDF, con su fuente LaTeX
+presentacion/  slides de la defensa en PDF
 demo/          prototipo desechable de cola + workers (Fase 1)
 experimentos/  scripts de los experimentos de las fases 6 y 7,
                y sus resultados medidos en resultados/
