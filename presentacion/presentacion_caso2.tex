@@ -490,67 +490,82 @@ Agregar réplicas & reconfigurar & basta conectarse \\
 
 % ── 17 · SATURACIÓN ──────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{Saturación y recuperación automática}{Qué hace el sistema ante una ráfaga: 25 órdenes de golpe, sin intervención posterior}
+\titulo{Prueba de estrés: saturación}{Metimos 25 órdenes de golpe para verificar que el sistema detecta la congestión y se recupera sin operador}
+\begin{columns}[T]
+\column{0.56\textwidth}
 \begin{center}
-\includegraphics[width=0.72\linewidth]{fig_saturacion.pdf}
+\includegraphics[width=0.94\linewidth]{fig_saturacion.pdf}
 \end{center}
-\begin{itemize}
-  \item Cada celda del gráfico es una llamada al diagnóstico de la API de métricas (la función de cuello recién vista), hecha \textbf{cada 15 s} durante la prueba.
-  \item A los 32 s el sistema declara \textbf{crítico} solo; la congestión recorre la línea como una ola. A los \textbf{278 s} todo vuelve a normal \textbf{sin intervención}: las esperas viejas salieron de la ventana móvil.
-\end{itemize}
+\begin{beamercolorbox}[sep=5pt, rounded=true]{tarjetabox}
+{\footnotesize\color{grisazul}\textbf{Cómo leerlo:} cada fila es una etapa; cada celda, una consulta al diagnóstico (cada 15 s); el color, el estado que respondió.}
+\end{beamercolorbox}
+\column{0.40\textwidth}
+\cifra{32 s}{el sistema declara \textbf{crítico} por sí solo, sin operador}
+\cifra{278 s}{todo de vuelta en \textbf{normal}, sin intervención}
+{\footnotesize\color{grisazul}\textbf{Qué nos dice:} el diagnóstico declara la congestión cuando aparece y la da de baja cuando pasa — la ventana móvil de 60 s deja ir las esperas viejas.}
+\end{columns}
 \end{frame}
 
 % ── 18 · ERRORES ─────────────────────────────────────────────────────────────
 \begin{frame}
-\titulo{Manejo de errores}{El error que provocamos, su causa real y la solución — medido antes y después}
+\titulo{Qué pasa cuando una pieza se cae}{Provocamos la falla más grave —detener Redis, el reparto del trabajo— la medimos y la resolvimos}
 \begin{columns}[T]
-\column{0.30\textwidth}
-\cifra{46 s}{antes: la API quedaba muda con Redis detenido}
-\column{0.30\textwidth}
-\cifra{2,1 s}{después: respuesta 503 con mensaje que nombra al servicio caído}
-\column{0.34\textwidth}
-\vspace{0.35cm}
-{\footnotesize\color{grisazul}Además: \texttt{201} creación · \texttt{422} validación · \texttt{404} inexistente · \texttt{503} dependencia caída — verificados contra el sistema corriendo.}
+\column{0.48\textwidth}
+\cifra{46 s}{\textbf{antes}: la API quedaba muda, sin error ni respuesta}
+\column{0.48\textwidth}
+\cifra{2,1 s}{\textbf{después}: respuesta inmediata que nombra al servicio caído}
 \end{columns}
+\vspace{0.3cm}
+\begin{center}
+\begin{tikzpicture}
+  \node (e1) [paso, minimum width=3.7cm, minimum height=1.5cm] at (0,0) {\textbf{1 · Provocamos la falla}\\[2pt] detuvimos Redis con el\\ sistema corriendo};
+  \node (e2) [paso, minimum width=4.5cm, minimum height=1.5cm] at (4.75,0) {\textbf{2 · Diagnosticamos}\\[2pt] el cuelgue no era la conexión:\\ era la resolución del nombre (DNS),\\ que el timeout no cubría};
+  \node (e3) [pasoc, minimum width=4.5cm, minimum height=1.5cm] at (9.7,0) {\textbf{3 · Resolvimos}\\[2pt] plazo máximo de 2 s: si no hay\\ respuesta, error inmediato que\\ nombra al servicio caído};
+  \draw [arrow] (e1) -- (e2); \draw [arrow] (e2) -- (e3);
+\end{tikzpicture}
+\end{center}
 \vspace{0.2cm}
-\begin{itemize}
-  \item \textbf{El error}: detuvimos Redis con el sistema corriendo; crear una orden dejaba a la API 46 s sin responder nada.
-  \item \textbf{El diagnóstico}: el cuelgue no estaba en la conexión sino en la \textbf{resolución del nombre} (DNS) — al detener un contenedor, Docker elimina su nombre y la búsqueda tarda $\sim$45 s en rendirse, fuera del alcance del timeout de conexión.
-  \item \textbf{La solución}: un plazo duro de 2 s sobre la operación completa; si no hay respuesta, se devuelve de inmediato un 503 que \textbf{nombra al servicio que falta}, y la interfaz nunca muestra un traceback.
-\end{itemize}
+{\footnotesize\color{grisazul}La interfaz nunca muestra un error críptico: consulta la salud de los servicios y nombra al que realmente falta. El resto de los códigos de error (validación, orden inexistente) también está verificado contra el sistema corriendo.}
 \end{frame}
 
 % ── 19 · PERSISTENCIA Y REPRODUCIBILIDAD ─────────────────────────────────────
-\begin{frame}[fragile]
-\titulo{Persistencia y reproducibilidad}{Dos tablas, nada guardado dos veces; despliegue completo con un comando}
+\begin{frame}
+\titulo{Persistencia de datos}{Todo lo que la línea hace queda registrado — y por qué eso necesita una base de datos y no un archivo}
 \begin{columns}[T]
 \column{0.52\textwidth}
 \begin{itemize}
-  \item SQLite en un volumen de Docker, dos tablas: \texttt{ordenes} y \texttt{eventos} (12 eventos por orden completa).
-  \item Espera, servicio y lead time \textbf{no se almacenan}: se calculan siempre desde los eventos — el dato guardado dos veces es el dato que se contradice.
-  \item La base sobrevive a apagar y levantar el sistema (verificado).
+  \item Cada acción de la línea (\emph{entra a cola} · \emph{inicia} · \emph{termina}) es un \textbf{evento} en SQLite. Las métricas se calculan siempre desde los eventos: \textbf{nada se guarda dos veces}, así ningún dato contradice a otro.
+  \item Los datos sobreviven a apagar y levantar el sistema (verificado).
 \end{itemize}
-\column{0.44\textwidth}
-{\footnotesize\color{grisazul}La prueba de reproducibilidad: clonar el repositorio en una carpeta vacía y levantar todo — nada más que Docker instalado:}\\[2pt]
-\begin{beamercolorbox}[sep=8pt, rounded=true]{tarjetabox}
-{\footnotesize\ttfamily\color{marino}git clone <repo> \&\& cd <dir>\\ docker compose up -d --build\\ \# tablero en localhost:8501}
+\vspace{0.05cm}
+\begin{beamercolorbox}[sep=5pt, rounded=true]{tarjetabox}
+{\small\bfseries\color{marino}¿Por qué una base de datos y no un archivo?}\\[2pt]
+{\footnotesize\color{grisazul}Hasta 6 contenedores escriben \textbf{a la vez}: SQLite ordena esas escrituras para que entren de a una sin pisarse, y permite consultarlas con filtros. Un archivo compartido perdería o mezclaría escrituras.}
 \end{beamercolorbox}
-\vspace{0.2cm}
-\cifra{8/8}{contenedores \emph{healthy} en la prueba de clon limpio}
+\column{0.44\textwidth}
+{\footnotesize\color{grisazul}\textbf{La prueba de reproducibilidad}: en un computador limpio, descargamos el proyecto y \textbf{un solo comando} levantó el sistema completo.}\\[4pt]
+\cifra{8/8}{de los 8 programas del sistema, los 8 arrancaron y confirmaron estar operativos}
 \end{columns}
 \end{frame}
 
-% ── 20 · RESILIENCIA ─────────────────────────────────────────────────────────
+% ── 20 · LÍMITES CONOCIDOS ───────────────────────────────────────────────────
 \begin{frame}
-\titulo{Resiliencia: cómo se abordaría}{No exigida por el enunciado — pero la arquitectura deja los puntos de corte listos}
-\begin{itemize}
-  \item \textbf{Estaciones:} sin estado propio, reconectan y mueren sin corromper nada. Pendiente: si una réplica muere a mitad de ciclo, su lote se pierde de la cola; el patrón estándar es moverlo a una cola «en proceso» al reclamarlo (comando \texttt{BLMOVE} de Redis) y devolverlo si la réplica deja de dar señales de vida.
-  \item \textbf{Redis:} punto único de falla del reparto $\to$ una réplica de Redis con conmutación automática (Redis Sentinel), o un broker de mensajes con confirmación de entrega (p.\,ej.\ Kafka): un mensaje no confirmado vuelve a entregarse solo.
-  \item \textbf{SQLite:} con más escritores o conmutación, migrar a MySQL/PostgreSQL cambiando solo el módulo de base de datos (\texttt{bd.py}) de cada servicio.
-  \item \textbf{APIs y tablero:} sin estado; dos instancias tras un balanceador HTTP quedan en alta disponibilidad — los chequeos de salud ya existentes son su insumo.
-\end{itemize}
-\vspace{0.2cm}
-{\small\color{grisazul}Cada mejora toca \textbf{un} nodo sin rediseñar los demás: para eso era la división en nodos.}
+\titulo{Límites conocidos y su solución}{Sabemos qué componente fallaría primero y cuál es el camino estándar de cada uno — sin rediseñar el resto}
+\begin{center}
+{\footnotesize\setlength{\tabcolsep}{5pt}
+\begin{tabular}{L{2.6cm} L{4.9cm} L{5.3cm}}
+\toprule
+\textbf{Componente} & \textbf{Qué pasa hoy si falla} & \textbf{Solución estándar} \\
+\midrule
+Redis (las colas) & el reparto de trabajo se detiene: las estaciones quedan esperando & una copia de respaldo con conmutación automática (Redis Sentinel) \\
+Una estación a mitad de ciclo & el lote que tenía en la mano se pierde de la línea & apartar el lote a una cola «en proceso» y devolverlo si la réplica deja de dar señales de vida \\
+SQLite & atiende bien un nodo; con más escritores llegaría a su límite & migrar a un motor con servidor (PostgreSQL) cambiando un solo módulo \\
+API / tablero & el operador pierde la interfaz; la línea sigue produciendo & una segunda instancia detrás de un balanceador HTTP \\
+\bottomrule
+\end{tabular}}
+\end{center}
+\vspace{0.15cm}
+{\small Conocer el punto débil de cada componente también es parte del diseño — y la división en nodos hace cada mejora \textbf{local}: se toca un componente sin rediseñar los demás.}
 \end{frame}
 
 % ── 21 · CONCLUSIONES ────────────────────────────────────────────────────────

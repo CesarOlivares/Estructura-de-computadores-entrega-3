@@ -1,7 +1,9 @@
 # Guion de la defensa — Caso 2: Línea de producción con balanceo dinámico
 
-Guion hablado para el deck de `presentacion/presentacion_caso2_alt.tex` (21 láminas).
-Está escrito para decirse en voz alta, no para leerse en pantalla.
+Guion hablado para las **22 láminas** de `presentacion/presentacion_caso2.pdf`,
+una sección por diapositiva. Está escrito para decirse en voz alta, no para
+leerse en pantalla: en cada lámina el texto dice qué usamos, cómo lo usamos,
+por qué, y qué aporta a lo que queremos demostrar.
 
 > **Para imprimir y llevar a la defensa:** [`presentacion/guion-defensa.pdf`](../presentacion/guion-defensa.pdf).
 >
@@ -10,325 +12,375 @@ Está escrito para decirse en voz alta, no para leerse en pantalla.
 > Si hay que corregir algo, se corrige allá, se recompila y después se refleja acá.
 > Son dos copias y pueden desincronizarse.
 
-**Duración.** El guion tiene **1.762 palabras** habladas. A 145 palabras por minuto, que
-es un ritmo de exposición normal, son **12 minutos**. Con 4 de demo da **16**, o sea
-**uno de más**. Hay que ganar ese minuto de una de estas dos formas, y decidirlo en el
-ensayo, no en la defensa:
+**Duración.** El guion tiene **~2.100 palabras** habladas: unos **15 minutos** a
+ritmo normal (145 palabras por minuto), más **~4 de demo**. Si el bloque
+disponible es menor, recortar en este orden, y decidirlo en el ensayo, no en la
+defensa:
 
-- **Bajar la demo a 3 minutos.** Es lo más fácil: el paso 5 (matar Redis) se puede
-  contar en vez de hacerse, porque su evidencia está en el informe.
-- **Cortar el cuarto acto** (diapositivas 18 y 19, Resiliencia). Es el contenido menos
-  exigido por el caso y sale sin romper el hilo: de la lámina 17 se pasa directo a
-  conclusiones.
+- Cortar los párrafos marcados con **⟨opcional⟩**.
+- **Acortar la demo**: el paso 5 (detener Redis) se puede contar en vez de
+  hacerse; su evidencia está en los anexos del informe.
+- **Saltarse la lámina 20** (límites conocidos): de la 19 se pasa directo a
+  conclusiones sin romper el hilo.
 
-Los párrafos marcados con **⟨opcional⟩** son los primeros que deben caer si el
-cronómetro aprieta. La regla es cortar contenido, nunca hablar más rápido.
+La regla es cortar contenido, nunca hablar más rápido.
 
-**Turnos:** los cuatro actos son los cortes naturales. Una repartición pareja es
-Acto I + Acto III para uno, Acto II + Acto IV para el otro, y la demo entre los dos.
-Definirlo antes y anotarlo acá.
+**Turnos.** Cortes naturales: láminas 1–6 (problema y arquitectura), 7–11
+(balanceo, carrera y detector), demo, 13–17 (experimentos), 18–22 (robustez y
+cierre). Definir el reparto antes y anotarlo acá.
 
 ---
 
-### (Diapositiva 1 — Portada)
+## DIAPOSITIVA 1 — Portada
 
-> "Hola, profesor. Hoy presentamos el Caso 2: una línea de producción con balanceo
+> "Hola, profesor. Presentamos el Caso 2: una línea de producción con balanceo
 > dinámico de carga. Construimos un sistema distribuido que simula una planta
-> conservera, detecta en vivo dónde se está atascando la producción, y responde una
-> pregunta concreta: qué pasa con ese atasco cuando uno agrega más máquinas a la etapa
-> lenta."
+> conservera, detecta en vivo dónde se está atascando la producción, y responde
+> una pregunta concreta: qué pasa con ese atasco cuando se agregan máquinas a la
+> etapa lenta."
 
 ---
 
-### (Diapositivas 2 y 3 — Primer acto: El problema)
+## DIAPOSITIVA 2 — El problema
 
-> "La planta tiene cuatro etapas en serie: fileteado, envasado, sellado y
-> esterilización. La unidad de trabajo es el **lote**, una cantidad de latas del mismo
-> formato, y cada lote pasa por las cuatro en orden.
+> "Antes del caso, el problema general. En toda línea en serie el ritmo lo fija
+> la etapa más lenta, y el trabajo se acumula en fila frente a ella. A la
+> izquierda, una línea sin nuestro desarrollo: la fila crece sin límite y sin
+> aviso. A la derecha, lo que construimos: un detector que mide la fila de cada
+> etapa, y capacidad agregada exactamente donde la fila crece.
 >
-> Cada etapa demora algo distinto por lote: cuatro segundos, doce, tres y siete. A ese
-> número lo llamamos **tiempo de ciclo**, y es una propiedad de la máquina: la
-> autoclave demora siete segundos y no hay cómo apurarla.
->
-> Entre etapa y etapa hay una **cola**, que es la fila de lotes esperando su turno. Y
-> acá está el concepto central: si a una etapa le llega trabajo más rápido de lo que
-> alcanza a procesarlo, su fila crece sin parar. Eso es un **cuello de botella**.
->
-> Envasado es la etapa más lenta, así que es la que se **replica**: levantar varias
-> copias idénticas funcionando en paralelo para que se repartan el trabajo.
->
-> La pregunta del caso es entonces: ¿qué le pasa al cuello de botella cuando escalamos
-> la etapa lenta? Les adelanto la respuesta, porque todo lo que viene es la evidencia
-> de esta frase: **el cuello no desaparece, se muda.**"
+> Esos son los dos problemas de ingeniería del proyecto: repartir el trabajo
+> entre copias de la etapa lenta sin duplicar ni perder unidades, y determinar
+> midiendo cuál etapa limita la producción. Van juntos: replicar sin medir es
+> invertir a ciegas, y medir sin poder replicar es diagnosticar sin tratamiento."
 
 ---
 
-### (Diapositivas 4 y 5 — Segundo acto: Arquitectura)
+## DIAPOSITIVA 3 — El caso
 
-> "Usamos cinco **servicios**. Un servicio es un programa que corre por su cuenta y le
-> ofrece algo a los demás por la red, en vez de ser una función dentro del mismo
-> programa.
+> "El caso concreto: una planta conservera ficticia de jurel en lata, con cuatro
+> etapas en serie. La unidad de trabajo es el **lote**; cada etapa demora un
+> tiempo fijo por lote —su **tiempo de ciclo**: cuatro, doce, tres y siete
+> segundos— y entre etapas hay una **cola**: la fila de lotes esperando. Si a
+> una etapa le llega trabajo más rápido de lo que procesa, su fila crece: eso es
+> un **cuello de botella**.
 >
-> Los agrupamos en tres **nodos lógicos**, y la agrupación no es arbitraria: cada nodo
-> junta lo que escala o falla por el mismo motivo. El A le da la cara al operador; el B
-> tiene las cuatro estaciones, que es lo único que se multiplica bajo carga; y el C
-> concentra el estado compartido, que por ser compartido no se puede duplicar sin
-> coordinación. Separar nodos separa dominios de falla: si las estaciones saturan el
-> procesador, el operador sigue siendo atendido.
->
-> Un detalle del que estamos conformes: las cuatro estaciones son **el mismo programa**.
-> No hay un código de fileteado y otro de envasado; la etapa que le toca y su tiempo de
-> ciclo le llegan por configuración al arrancar. Todo corre sobre **Docker**, que
-> empaqueta cada programa con lo que necesita en una unidad llamada contenedor, de modo
-> que funciona igual en cualquier máquina. Por eso levantar el sistema completo es un
-> comando y no una lista de pasos de instalación."
+> Envasado, con doce segundos, es la más lenta, y es la que se replica. La
+> pregunta del caso: ¿qué pasa con el cuello al escalar la etapa lenta? Adelanto
+> la respuesta, porque todo lo que sigue es su evidencia: **no desaparece — se
+> muda**."
 
 ---
 
-### (Diapositiva 6 — Balanceo por demanda)
+## DIAPOSITIVA 4 — Tecnologías y su rol
 
-> "¿Cómo se reparte el trabajo entre las réplicas?
+> "Las piezas y su rol; todo lo que digamos después sale de esta tabla.
 >
-> Lo habitual es poner un **balanceador** delante: una pieza que recibe cada lote y
-> decide a cuál réplica mandárselo. La forma más simple es **round-robin**: por turnos
-> fijos y en orden, uno para cada una.
->
-> Nosotros lo hicimos al revés, y es una decisión que defendemos. En vez de que alguien
-> les asigne trabajo, las réplicas **piden**: cada una toma el siguiente lote de la cola
-> compartida cuando queda libre. Nuestro balanceador es la cola.
->
-> ¿Por qué es mejor? Porque round-robin es estático: le sigue mandando lotes a una
-> réplica lenta al mismo ritmo que a las rápidas. Pidiendo, la réplica lenta
-> simplemente pide menos veces. El balanceo se adapta solo, y más adelante mostramos el
-> experimento que lo mide."
+> Los servicios están escritos en **Python**. **Docker** empaqueta cada programa
+> en una **imagen**; cada copia corriendo es un **contenedor**, y replicar una
+> etapa es lanzar más contenedores de la misma imagen. **Redis** es un almacén
+> en memoria que usamos como cola de trabajo; atiende sus comandos de a uno —
+> ese detalle será clave en la condición de carrera. Con **FastAPI** construimos
+> las dos **APIs**, la interfaz por la que un programa recibe peticiones de
+> otro: la de órdenes y la de métricas. **SQLite** guarda órdenes y eventos en
+> un archivo. Y **Streamlit** es el tablero del operador."
 
 ---
 
-### (Diapositiva 7 — Condición de carrera)
+## DIAPOSITIVA 5 — Arquitectura en nodos
 
-> "Pero pedir de una cola compartida abre un riesgo, y es el problema central del caso.
+> "Un **nodo lógico** es un grupo de contenedores que correría en una máquina
+> propia. Usamos tres, con un criterio: cada nodo escala o falla por un motivo
+> distinto. El A atiende al operador; el B tiene las estaciones, lo único que se
+> multiplica bajo carga; el C concentra el estado compartido.
 >
-> Si dos réplicas piden al mismo tiempo, el lote se lo tiene que llevar exactamente
-> una. Cuando el resultado depende de cuál llegó primero, eso es una **condición de
-> carrera**.
->
-> La provocamos a propósito antes de resolverla, y las dos versiones quedaron en el
-> historial de commits. La versión ingenua reclama en dos pasos: primero mira cuál es
-> el próximo lote, después lo saca. Entre el paso uno y el paso dos el lote sigue en la
-> cola, así que otra réplica que mire en ese instante ve el mismo. Ensanchamos esa
-> ventana hasta reproducir duplicados: con tres réplicas y cien pedidos, la planta
-> envasaba trescientos lotes. El triple de materia prima.
->
-> La solución no fue ponerle un candado con expiración, que es lo clásico. Usamos una
-> **operación atómica**: una operación que ocurre entera o no ocurre, sin ningún
-> instante intermedio en que otro pueda ver el sistema a medio hacer. **Redis**, la
-> base de datos en memoria que usamos como cola, atiende sus comandos de uno en uno, así
-> que sacar un lote es indivisible por construcción.
->
-> La diferencia conceptual es la que nos importa: un candado **administra** la ventana
-> de riesgo; la operación atómica la **elimina**. Con ella medimos cero duplicados en
-> doscientas órdenes."
+> Como la frontera entre nodos es la frontera entre contenedores, hoy conviven
+> en una máquina y mañana se separan sin cambiar código. Y separar nodos separa
+> dominios de falla: si las estaciones saturan el procesador, el operador sigue
+> atendido."
 
 ---
 
-### (Diapositiva 8 — El criterio de cuello de botella)
+## DIAPOSITIVA 6 — Una imagen, cuatro estaciones
 
-> "Antes de los resultados hay que definir cómo decidimos dónde está el atasco, porque
-> no hay una definición única y es la decisión técnica más importante que tomamos.
+> "Las cuatro estaciones son un solo programa: una sola imagen de Docker. Al
+> arrancar, cada contenedor recibe por configuración qué etapa es, de qué cola
+> lee, a cuál escribe y cuánto dura su ciclo.
 >
-> Hay dos tiempos que distinguir. El **tiempo de servicio** es lo que la etapa demora
-> procesando un lote que ya tiene en la mano. El **tiempo de espera** es lo que el lote
-> pasa haciendo fila antes de que lo tomen.
->
-> La analogía es el supermercado: un cajero lento no es un atasco. El atasco es la fila
-> que crece frente a su caja.
->
-> Nuestro criterio mide **espera, no servicio**. El cuello es la etapa con mayor espera
-> promedio sobre una **ventana móvil** de sesenta segundos —mirando solo el último
-> minuto, para que una congestión vieja y ya resuelta no contamine el diagnóstico de
-> ahora— comparada contra umbrales relativos al ciclo de cada etapa: vez y media es
-> advertencia, tres veces es crítico.
->
-> Y no es una sutileza. Con dos réplicas, envasado sigue teniendo el ciclo más largo de
-> la línea y **no** es el cuello. Midiendo servicio, el detector habría señalado
-> envasado para siempre y nunca habríamos visto el fenómeno que veníamos a estudiar."
+> ¿Por qué replicar? Envasado procesa un lote cada doce segundos, menos de lo
+> que le llega: la única forma de subir su capacidad es poner más envasadoras en
+> paralelo. Y como todas salen de la misma imagen, eso es un solo comando, sin
+> tocar configuración. Ninguna réplica sabe cuántas hermanas tiene, ni lo
+> necesita."
 
 ---
 
-### (Diapositivas 9 y 10 — Demo en vivo, ~4 minutos)
+## DIAPOSITIVA 7 — Reparto por turnos: round-robin
 
-> "Vamos a mostrarlo funcionando. Esto está corriendo de verdad: dos réplicas de
-> envasado y las otras tres etapas."
+> "¿Cómo repartir el trabajo entre las réplicas? Primero la forma clásica, que
+> es el punto de comparación.
+>
+> **Round-robin**: asignar por turnos fijos — el lote uno a la réplica uno, el
+> dos a la dos, y vuelta a empezar. Es lo que hace un balanceador por defecto:
+> simple, y parejo en cantidad.
+>
+> Su límite: es ciego al estado de cada réplica. Si una está ocupada, lenta o
+> caída, igual le toca su turno — y el trabajo se apila frente a ella."
+
+---
+
+## DIAPOSITIVA 8 — Balanceo por demanda
+
+> "Nuestro desarrollo hace lo contrario: nadie asigna. Cada réplica **pide** el
+> siguiente lote de la cola compartida cuando queda libre; el balanceador es la
+> cola.
+>
+> ¿Cómo ayuda? Una réplica lenta simplemente pide menos veces: el reparto se
+> adapta solo a la capacidad real de cada máquina — balanceo **dinámico**, sin
+> programarlo. Y agregar réplicas no requiere reconfigurar nada: basta
+> conectarse a la cola. El experimento que lo mide viene más adelante: once,
+> doce y siete."
+
+---
+
+## DIAPOSITIVA 9 — Coordinación: la condición de carrera
+
+> "Pedir de una cola compartida abre el problema central: si dos réplicas piden
+> a la vez, el lote debe llevárselo exactamente una. Eso es una **condición de
+> carrera**, y la provocamos antes de resolverla; ambas versiones están en el
+> historial de commits.
+>
+> La versión con defecto reclama en dos pasos: mira la cola, y después saca.
+> Entre un paso y otro, otra réplica ve el mismo lote: con tres réplicas y
+> doscientas órdenes medimos órdenes procesadas dos veces.
+>
+> La solución es `BRPOP`, un comando de Redis que entrega el elemento y lo
+> elimina en **una sola operación indivisible**. Como Redis atiende de a uno,
+> dos réplicas no pueden recibir el mismo lote. Misma prueba: cero duplicados.
+> Un candado habría *administrado* la ventana de riesgo; la operación atómica la
+> *elimina*."
+
+---
+
+## DIAPOSITIVA 10 — Criterio de cuello: espera, no servicio
+
+> "Para localizar el cuello hay que decidir qué medir; esta es nuestra decisión
+> técnica central.
+>
+> De los eventos derivamos dos tiempos por etapa: la **espera** —desde que el
+> lote entra a la cola hasta que lo toman— y el **servicio** —lo que dura el
+> procesamiento—. Un servicio largo solo dice que la tarea es larga; el atasco
+> es trabajo llegando más rápido de lo que se drena, y eso se ve en la espera.
+>
+> El gráfico lo demuestra: con dos réplicas, envasado sigue con el ciclo más
+> largo, pero la fila que crece está en esterilización. Por servicio, jamás la
+> habríamos encontrado."
+
+---
+
+## DIAPOSITIVA 11 — El detector en funcionamiento
+
+> "La regla que corre en la API de métricas — el diagrama es esa lógica.
+> *Advertencia* si la espera promedio del último minuto supera una vez y media
+> el ciclo de la etapa; *crítico* si supera tres veces. Umbrales relativos,
+> porque diez segundos de espera son graves para sellado y poca cosa para
+> envasado. El cuello es la etapa de mayor espera entre las que superan umbral;
+> si ninguna, no hay cuello.
+>
+> Así lo evidenciamos: a ritmo constante, el detector señaló envasado. Agregamos
+> una envasadora: la espera bajó, pero la fila reapareció en esterilización. Con
+> una tercera, envasado quedó sobrado — y el límite siguió ahí. Los números
+> vienen en los resultados."
+
+---
+
+## DIAPOSITIVA 12 — Demo en vivo (~4 minutos)
+
+> "Vamos a mostrarlo funcionando. Esto corre de verdad: dos réplicas de envasado
+> y las otras tres etapas."
 
 **Guion de la demo:**
 
-1. **La línea al día.** Mostrar las cuatro etapas, las réplicas con su ciclo y su carga,
-   y el cartel verde.
-2. **Ingresar lotes** desde el panel izquierdo, **espaciados unos cinco segundos**.
-   > ⚠️ No inyectar muchos de golpe: se apilan en la primera cola y el tablero marca
-   > fileteado como el atasco — correctamente, pero es la respuesta a otra pregunta.
-   > Si alguien lo nota, explicar exactamente eso.
-3. **Ver crecer la espera** de esterilización. El cartel pasa de verde a ámbar y luego a
-   rojo.
-   > "Fíjense que el cartel no dice solo 'hay un problema': nombra la etapa, dice
-   > cuántos lotes hacen cola y da el número. Ese diagnóstico viene del servicio de
+1. **La línea al día.** Mostrar las cuatro etapas, las réplicas con su ciclo y
+   su carga, y el cartel en estado normal.
+2. **Ingresar lotes** desde el panel izquierdo, **espaciados unos cinco
+   segundos**.
+   > ⚠️ No inyectar muchos de golpe: se apilan en la primera cola y el tablero
+   > marca fileteado como el atasco — correctamente, pero es la respuesta a otra
+   > pregunta. Si alguien lo nota, explicar exactamente eso.
+3. **Ver crecer la espera** de esterilización. El cartel pasa de gris a ámbar y
+   luego a rojo.
+   > "El cartel no dice solo 'hay un problema': nombra la etapa, dice cuántos
+   > lotes hacen cola y da el número. Ese diagnóstico viene de la API de
    > métricas; el tablero solo lo muestra."
-4. **La condición de carrera, en vivo.** Bajar y apretar «Ejecutar la comparación».
-   > "Esto corre el experimento ahora: encola los mismos lotes dos veces, una con cada
-   > versión del reclamo. Con cien pedidos, la ingenua envasa trescientos y la atómica
-   > cien. Y es **el mismo código** que corre en las estaciones: las dos funciones se
-   > importan del mismo módulo, no hay una copia para la demo que pueda quedar
-   > desactualizada. Usa una cola aparte, así que la línea de arriba sigue produciendo."
-5. **Matar Redis.** Detener el contenedor, mostrar que la interfaz nombra al servicio
-   caído sin un error críptico, y volver a levantarlo.
+4. **La condición de carrera, en vivo.** Bajar y apretar «Ejecutar la
+   comparación».
+   > "Esto corre el experimento ahora: encola los mismos lotes dos veces, una
+   > con cada versión del reclamo. Con cien pedidos, la versión en dos pasos
+   > registra unos trescientos envasados y la atómica exactamente cien. Y es
+   > **el mismo código** que corre en las estaciones: las dos funciones se
+   > importan del mismo módulo. Usa una cola aparte, así que la línea de arriba
+   > sigue produciendo."
+5. **Detener Redis.** Parar el contenedor, mostrar que la interfaz nombra al
+   servicio caído sin un error críptico, y volver a levantarlo.
 
 > *Plan B si algo falla: las capturas están en los anexos del informe.*
 
 ---
 
-### (Diapositivas 11 y 12 — Tercer acto: la aritmética del escenario)
+## DIAPOSITIVA 13 — Experimentos: qué corrimos y por qué
 
-> "Los experimentos. Todos reproducibles y con sus datos crudos versionados.
+> "Los experimentos son software: un script crea una orden cada cinco segundos
+> durante tres minutos a través de la API, y al final consulta las métricas. Se
+> repite con una, dos y tres envasadoras; la corrida con una es la línea **sin**
+> nuestro desarrollo — la base de comparación. Ritmo constante porque representa
+> demanda sostenida; inyectar de golpe responde otra pregunta y va aparte.
 >
-> El escenario es siempre el mismo: una orden cada cinco segundos durante tres minutos,
-> o sea doce lotes por minuto entrando.
->
-> Este gráfico es la aritmética de capacidad, y lo mostramos **antes** de los resultados
-> a propósito, porque los predice. Cada barra es cuántos lotes por minuto puede sacar
-> cada etapa; la línea punteada son los doce que llegan. Toda etapa bajo esa línea
-> acumula fila tarde o temprano.
->
-> Envasado con una réplica saca cinco. Con dos sube a diez: mejor, pero todavía
-> insuficiente. Y ahí aparece esterilización con ocho coma seis, que queda como el
-> siguiente límite. La figura ya anticipa el resultado."
+> El gráfico anticipa el resultado: cada barra es la capacidad de una etapa; la
+> línea segmentada, los doce lotes por minuto que llegan. Toda etapa bajo esa
+> línea acumula fila: envasado con una réplica saca cinco, con dos sube a diez —
+> aún insuficiente — y esterilización, con ocho coma seis, queda como el
+> siguiente límite."
 
 ---
 
-### (Diapositiva 13 — El resultado central)
+## DIAPOSITIVA 14 — El resultado central
 
-> "Esto es lo que medimos: la espera promedio de las cuatro etapas, con una, dos y tres
-> réplicas de envasado.
+> "El resultado central. Réplicas significa envasadoras trabajando en paralelo
+> sobre la misma cola.
 >
-> Con **una** réplica, envasado acumula sesenta y siete coma ocho segundos de espera y
-> el resto de la línea está casi ociosa.
+> Con **una** —la línea sin escalar—, envasado acumula sesenta y ocho segundos
+> de espera y el resto está casi ocioso. Con **dos**, el cuello **se desplaza a
+> esterilización**. Y ojo: esterilización no cambió nada; lo que cambió es que
+> ahora le llega trabajo más rápido de lo que puede sacar, porque envasado dejó
+> de ser el freno. Con **tres**, envasado queda sobrado… y el cuello sigue en
+> esterilización.
 >
-> Con **dos**, el cuello **se desplaza a esterilización**. Y ojo con esto:
-> esterilización no cambió nada, sigue demorando siete segundos por lote. Lo que cambió
-> es que ahora le llega trabajo más rápido de lo que puede sacarlo, porque envasado
-> dejó de ser el freno.
->
-> Con **tres**, envasado queda sobrado, con menos de un segundo de espera… y el cuello
-> sigue en esterilización. Ahí está la respuesta: el cuello no se eliminó. Se mudó."
+> Ahí está la respuesta del caso: el cuello no se eliminó — se mudó."
 
 ---
 
-### (Diapositiva 14 — Cuánto compra cada réplica)
+## DIAPOSITIVA 15 — ¿Cuánto compra cada réplica?
 
-> "La pregunta del jefe de planta es cuánto le compró esa inversión. Para eso está el
-> **lead time**: el tiempo total de punta a punta, desde que se crea la orden hasta que
-> el lote sale terminado. Suma todas las esperas y todos los ciclos del recorrido.
+> "¿Cuánto compró la inversión? Para eso está el **lead time**: el tiempo de
+> punta a punta, desde que se crea la orden hasta que sale terminada.
 >
-> La segunda réplica compra un veintiuno por ciento de mejora. La tercera,
-> prácticamente nada.
+> Frente a la línea sin escalar, la segunda envasadora lo reduce un veintiuno
+> por ciento; la tercera, casi nada, porque el límite ya no está en envasado.
 >
-> Y esa es la conclusión útil: la siguiente inversión correcta no es una tercera
-> envasadora, es **una segunda autoclave**. El tablero responde eso en vivo, que es para
-> lo que sirve medir."
+> La conclusión útil: la siguiente inversión correcta es una segunda autoclave,
+> no una tercera envasadora — y el tablero responde esa pregunta en vivo. Para
+> eso sirve medir."
 
 ---
 
-### (Diapositiva 15 — Balanceo con una réplica lenta)
+## DIAPOSITIVA 16 — Balanceo con una réplica lenta
 
-> "Este experimento prueba que el balanceo es dinámico de verdad.
+> "Este experimento prueba que el balanceo es dinámico de verdad: tres réplicas
+> sobre la misma cola, una al doble de ciclo, treinta lotes.
 >
-> Tres réplicas de envasado sobre la misma cola, pero una configurada al doble de lenta,
-> y treinta lotes.
+> Un round-robin habría dado diez, diez y diez, sin mirar la velocidad de nadie.
+> Medimos once, doce y siete: la lenta procesó un cuarenta por ciento menos.
 >
-> Un round-robin habría entregado diez, diez y diez sin mirar la velocidad de nadie. Lo
-> que medimos fue **once, doce y siete**: la lenta procesó un cuarenta por ciento menos.
->
-> Nadie programó esa proporción, profesor. No hay una línea de código que diga 'dale
-> menos a la lenta'. Salió sola de que cada réplica pide trabajo únicamente cuando queda
-> libre. Eso es lo que hace que el balanceo sea dinámico: proporcional a la capacidad
-> real de cada máquina, no a un turno preestablecido."
+> Nadie programó esa proporción: emergió de que cada réplica pide trabajo solo
+> cuando queda libre. Balanceo proporcional a la capacidad real de cada máquina."
 
 ---
 
-### (Diapositiva 16 — Saturación y recuperación)
+## DIAPOSITIVA 17 — Prueba de estrés: saturación
 
-> "El último experimento fue meterle una ráfaga de veinticinco órdenes de golpe.
+> "La prueba de estrés: veinticinco órdenes de golpe, y después nadie toca nada.
 >
-> A los treinta y dos segundos el sistema **se declara crítico solo**.
+> Cómo leer el gráfico: cada fila es una etapa; cada celda, una consulta al
+> diagnóstico —una cada quince segundos—; el color, el estado que respondió.
 >
-> ⟨opcional⟩ Y se ve algo bonito: la congestión recorre la línea como una ola, aparece
-> en la etapa de entrada y se propaga aguas abajo.
->
-> A los doscientos setenta y ocho vuelve todo a normal **sin intervención**. Es
-> consecuencia directa de la ventana móvil: las esperas viejas salieron del último
-> minuto. El sistema no se 'arregló'; dejó de estar congestionado y la métrica lo
-> reflejó."
+> Qué nos dice: a los treinta y dos segundos el sistema declara crítico **por sí
+> solo**. ⟨opcional⟩ La congestión avanza por la línea igual que el trabajo,
+> como una ola. Y a los doscientos setenta y ocho, todo vuelve a normal **sin
+> intervención**: las esperas viejas salieron de la ventana móvil. El
+> diagnóstico funciona solo en los dos sentidos: declara el problema cuando
+> aparece y lo da de baja cuando pasa."
 
 ---
 
-### (Diapositiva 17 — Robustez)
+## DIAPOSITIVA 18 — Qué pasa cuando una pieza se cae
 
-> "Tres cosas que sostienen todo lo demás.
+> "¿Y si una pieza se cae? Lo probamos con la falla más grave: detener Redis,
+> que es quien reparte el trabajo.
 >
-> **Errores.** Al matar Redis, el servicio de órdenes responde en dos segundos
-> nombrando al servicio que falta. ⟨opcional⟩ Antes se colgaba cuarenta y seis: le
-> habíamos puesto un límite de tiempo, pero el cuelgue estaba en la resolución del
-> nombre y no en la conexión, y ese límite no lo cubría.
+> El antes: la API quedaba cuarenta y seis segundos muda. El diagnóstico: el
+> cuelgue no estaba en la conexión sino en la **resolución del nombre** — Docker
+> borra el nombre del contenedor detenido y la búsqueda tarda unos cuarenta y
+> cinco segundos en rendirse, fuera del alcance del timeout que teníamos. La
+> solución: un plazo máximo de dos segundos; si no hay respuesta, un error
+> inmediato que **nombra al servicio caído**.
 >
-> **Persistencia.** Guardamos en **SQLite**, una base de datos que vive en un solo
-> archivo. Dos tablas: órdenes y eventos. Los tiempos **no se guardan**, se calculan
-> desde los eventos — el dato guardado dos veces es el que termina contradiciéndose.
->
-> **Despliegue.** Un comando levanta todo desde cero, probado clonando en una carpeta
-> vacía: ocho de ocho contenedores sanos."
+> El después, medido: dos coma un segundos, con explicación."
 
 ---
 
-### (Diapositivas 18 y 19 — Cuarto acto: Resiliencia)
+## DIAPOSITIVA 19 — Persistencia de datos
 
-> "El caso no pedía tolerancia a fallos y deliberadamente no la implementamos: el
-> sistema **detecta y explica** las fallas en vez de disimularlas. Pero sabemos dónde
-> iría cada pieza.
+> "Todo lo que la línea hace queda registrado: cada acción de cada lote es un
+> evento en SQLite, y las métricas se calculan siempre desde los eventos — nada
+> se guarda dos veces, así ningún dato contradice a otro.
 >
-> Las **estaciones** no tienen estado propio: mueren sin corromper nada. Falta
-> re-encolar el lote en curso si una muere a la mitad. **Redis** es el punto único de
-> falla del reparto: ahí iría una réplica de respaldo. Y **SQLite** aguanta esta carga,
-> pero con más escritores habría que migrar, y eso toca un solo módulo.
+> ¿Por qué una base de datos y no una planilla o un archivo? Hasta seis
+> contenedores escriben al mismo tiempo: SQLite ordena esas escrituras para que
+> entren de a una sin pisarse. Un archivo compartido las perdería o mezclaría.
 >
-> Lo que queremos destacar: ninguna de esas mejoras obliga a rediseñar las otras. Para
-> eso servía haber dividido el sistema en nodos desde el principio."
+> Y la reproducibilidad, probada: en un computador limpio, un solo comando
+> levantó el sistema completo — los ocho programas arrancaron y confirmaron
+> estar operativos."
 
 ---
 
-### (Diapositivas 20 y 21 — Conclusiones y cierre)
+## DIAPOSITIVA 20 — Límites conocidos y su solución
+
+> "Cierro la parte técnica con los límites que conocemos, porque saber qué falla
+> primero también es diseño.
+>
+> Si cae Redis, el reparto se detiene: la solución estándar es una copia de
+> respaldo con conmutación automática. Si una estación muere a mitad de ciclo,
+> ese lote se pierde: el camino es apartarlo a una cola 'en proceso' y
+> devolverlo si la réplica deja de dar señales. SQLite atiende bien un nodo; con
+> más escritores se migra a un motor con servidor tocando un solo módulo. Y la
+> API y el tablero se duplican tras un balanceador.
+>
+> Lo importante: cada mejora es local — se toca un componente sin rediseñar los
+> demás, y para eso se dividió el sistema en nodos."
+
+---
+
+## DIAPOSITIVA 21 — Conclusiones
 
 > "Para cerrar, cinco frases, todas medidas.
 >
-> **El cuello de botella no se elimina, se muda:** de envasado a esterilización al pasar
-> de una a dos réplicas.
+> **El cuello no se elimina, se desplaza**: de envasado a esterilización al
+> pasar de una a dos envasadoras.
 >
-> **Medir espera en vez de servicio es lo que permite verlo:** el cuello real tenía un
-> ciclo más corto que envasado.
+> **Medir espera es lo que permite localizarlo**: el cuello real tenía un ciclo
+> más corto que envasado.
 >
-> **El balanceo dinámico emerge del mecanismo:** once, doce y siete con una réplica
+> **El balanceo por demanda se adapta solo**: once, doce y siete con una réplica
 > lenta, sin que nadie asignara ese reparto.
 >
-> **La condición de carrera se elimina, no se administra:** cero duplicados en
+> **La condición de carrera se elimina, no se administra**: cero duplicados en
 > doscientas órdenes.
 >
-> **Las fallas se explican, no se enmascaran:** un error claro en dos segundos, en vez
-> de cuarenta y seis de silencio.
+> **Las fallas se explican, no se enmascaran**: una respuesta clara en dos
+> segundos, en vez de cuarenta y seis de silencio.
 >
-> Si me quedo con una sola idea de todo el proyecto, profesor, es esta: **agregar
-> máquinas no elimina el cuello de botella, lo traslada.** Por eso lo que hay que
-> construir no es una línea más rápida, sino una línea que sepa decirte dónde se está
-> atascando ahora mismo. Sin eso, uno invierte a ciegas.
->
-> Muchas gracias."
+> Si me quedo con una sola idea, profesor, es esta: agregar máquinas no elimina
+> el cuello de botella — lo traslada. Por eso lo que hay que construir no es una
+> línea más rápida, sino una línea que sepa decirte dónde se está atascando
+> ahora mismo. Sin eso, se invierte a ciegas."
+
+---
+
+## DIAPOSITIVA 22 — Gracias
+
+> "Muchas gracias. Quedamos atentos a sus preguntas."
 
 ---
 
